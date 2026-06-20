@@ -9,18 +9,38 @@ import { InvestmentForm } from "./investment-form";
 import { TransferForm } from "./transfer-form";
 import { RecurringForm } from "@/components/planner/recurring-form";
 import { GoalForm } from "@/components/planner/goal-form";
+import { DepositForm } from "@/components/planner/deposit-form";
 import type { QuickAddType } from "@/stores/ui-store";
 
 const META: Record<QuickAddType, { title: string; description: string }> = {
   income: { title: "Add Income", description: "Record money coming in." },
   expense: { title: "Add Expense", description: "Record a purchase or bill." },
-  subscription: { title: "Add Subscription", description: "Track a recurring cost." },
+  subscription: {
+    title: "Add Subscription",
+    description: "Track a recurring cost.",
+  },
   investment: { title: "Add Investment", description: "Track a holding." },
   transfer: { title: "Transfer", description: "Move money between accounts." },
-  salary: { title: "Add Salary / Income", description: "A recurring income like your salary." },
-  emi: { title: "Add Loan / EMI", description: "A loan or a card bill split into installments." },
-  sip: { title: "Add SIP", description: "A recurring investment into a holding." },
-  goal: { title: "Add Savings Goal", description: "Set a target and track progress." },
+  salary: {
+    title: "Add Salary / Income",
+    description: "A recurring income like your salary.",
+  },
+  emi: {
+    title: "Add Loan / EMI",
+    description: "A loan or a card bill split into installments.",
+  },
+  sip: {
+    title: "Add SIP",
+    description: "A recurring investment into a holding.",
+  },
+  goal: {
+    title: "Add Savings Goal",
+    description: "Set a target and track progress.",
+  },
+  deposit: {
+    title: "Add FD / RD",
+    description: "A fixed or recurring deposit with maturity.",
+  },
 };
 
 export function QuickAddHost() {
@@ -39,13 +59,24 @@ export function QuickAddHost() {
     >
       {quickAdd === "income" ? <IncomeForm onDone={closeQuickAdd} /> : null}
       {quickAdd === "expense" ? <ExpenseForm onDone={closeQuickAdd} /> : null}
-      {quickAdd === "subscription" ? <SubscriptionForm onDone={closeQuickAdd} /> : null}
-      {quickAdd === "investment" ? <InvestmentForm onDone={closeQuickAdd} /> : null}
+      {quickAdd === "subscription" ? (
+        <SubscriptionForm onDone={closeQuickAdd} />
+      ) : null}
+      {quickAdd === "investment" ? (
+        <InvestmentForm onDone={closeQuickAdd} />
+      ) : null}
       {quickAdd === "transfer" ? <TransferForm onDone={closeQuickAdd} /> : null}
-      {quickAdd === "salary" ? <RecurringForm template="salary" onDone={closeQuickAdd} /> : null}
-      {quickAdd === "emi" ? <RecurringForm template="emi" onDone={closeQuickAdd} /> : null}
-      {quickAdd === "sip" ? <RecurringForm template="sip" onDone={closeQuickAdd} /> : null}
+      {quickAdd === "salary" ? (
+        <RecurringForm template="salary" onDone={closeQuickAdd} />
+      ) : null}
+      {quickAdd === "emi" ? (
+        <RecurringForm template="emi" onDone={closeQuickAdd} />
+      ) : null}
+      {quickAdd === "sip" ? (
+        <RecurringForm template="sip" onDone={closeQuickAdd} />
+      ) : null}
       {quickAdd === "goal" ? <GoalForm onDone={closeQuickAdd} /> : null}
+      {quickAdd === "deposit" ? <DepositForm onDone={closeQuickAdd} /> : null}
     </FormModal>
   );
 }

@@ -1,13 +1,34 @@
-import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { transactions, categories } from "@/db/schema";
-import { archivedProjectIds, listProjectsWithStats } from "@/server/repositories/projects.repo";
+import {
+  archivedProjectIds,
+  listProjectsWithStats,
+} from "@/server/repositories/projects.repo";
 import { listUpcoming } from "@/server/repositories/subscriptions.repo";
 import { listRecurring } from "@/server/repositories/recurring.repo";
+import { listDeposits } from "@/server/repositories/deposits.repo";
 import { listGoals } from "@/server/repositories/goals.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { savingsRatePct } from "@/lib/finance";
-import { todayISO, monthRange, addMonthsISO, fiscalYearRange } from "@/lib/date";
+import {
+  todayISO,
+  monthRange,
+  addMonthsISO,
+  fiscalYearRange,
+} from "@/lib/date";
 import { formatINR } from "@/lib/money";
 
 export type InsightCard = {
@@ -17,14 +38,28 @@ export type InsightCard = {
   title: string;
 };
 
-const AI_CATEGORIES = ["Claude", "ChatGPT", "Cursor", "OpenAI API", "Gemini API"];
+const AI_CATEGORIES = [
+  "Claude",
+  "ChatGPT",
+  "Cursor",
+  "OpenAI API",
+  "Gemini API",
+];
 
-function buildConds(projectId: string, includeArchived: boolean, archived: string[]): SQL[] {
-  const conds: SQL[] = [];
+function buildConds(
+  projectId: string,
+  includeArchived: boolean,
+  archived: string[],
+): SQL[] {
+  // Tenant scope first — every periodTotals/AI-spend/top-category query funnels through here.
+  const conds: SQL[] = [eq(transactions.userId, getCurrentUserId())];
   if (projectId && projectId !== "all") {
     conds.push(eq(transactions.projectId, projectId));
   } else if (!includeArchived && archived.length) {
-    const c = or(isNull(transactions.projectId), notInArray(transactions.projectId, archived));
+    const c = or(
+      isNull(transactions.projectId),
+      notInArray(transactions.projectId, archived),
+    );
     if (c) conds.push(c);
   }
   return conds;
@@ -33,19 +68,41 @@ function buildConds(projectId: string, includeArchived: boolean, archived: strin
 async function periodTotals(conds: SQL[], from: string, to: string) {
   const [row] = await db
     .select({
-      income: sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      gst: sql<number>`coalesce(sum(${transactions.gstAmount}),0)`.mapWith(Number),
+      income:
+        sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      expense:
+        sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      gst: sql<number>`coalesce(sum(${transactions.gstAmount}),0)`.mapWith(
+        Number,
+      ),
     })
     .from(transactions)
-    .where(and(...conds, gte(transactions.occurredAt, from), lt(transactions.occurredAt, to)));
+    .where(
+      and(
+        ...conds,
+        gte(transactions.occurredAt, from),
+        lt(transactions.occurredAt, to),
+      ),
+    );
   return row ?? { income: 0, expense: 0, gst: 0 };
 }
 
 export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
-  const [settings, archived] = await Promise.all([getSettingsRow(), archivedProjectIds()]);
+  const userId = getCurrentUserId();
+  const [settings, archived] = await Promise.all([
+    getSettingsRow(),
+    archivedProjectIds(),
+  ]);
   const today = todayISO();
-  const conds = buildConds(projectId, settings.includeArchivedInTotals, archived);
+  const conds = buildConds(
+    projectId,
+    settings.includeArchivedInTotals,
+    archived,
+  );
   const thisM = monthRange(today);
   const lastM = monthRange(addMonthsISO(thisM.start, -1));
   const fy = fiscalYearRange(today, settings.fyStartMonth);
@@ -53,50 +110,79 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
 
   // Every read below is independent — run them as one parallel batch so this
   // endpoint costs ~2 Neon round trips instead of ~11 sequential ones.
-  const [cur, prev, fyTotals, aiRow, topCatRow, projects, upcoming, recurring, goals] =
-    await Promise.all([
-      periodTotals(conds, thisM.start, thisM.end),
-      periodTotals(conds, lastM.start, lastM.end),
-      periodTotals(conds, fy.start, fy.end),
-      db
-        .select({
-          amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number),
-        })
-        .from(transactions)
-        .innerJoin(categories, eq(transactions.categoryId, categories.id))
-        .where(
-          and(
-            ...conds,
-            eq(transactions.type, "expense"),
-            gte(transactions.occurredAt, thisM.start),
-            lt(transactions.occurredAt, thisM.end),
-            eq(categories.kind, "expense"),
-            inArray(categories.name, AI_CATEGORIES),
+  const [
+    cur,
+    prev,
+    fyTotals,
+    aiRow,
+    topCatRow,
+    projects,
+    upcoming,
+    recurring,
+    deposits,
+    goals,
+  ] = await Promise.all([
+    periodTotals(conds, thisM.start, thisM.end),
+    periodTotals(conds, lastM.start, lastM.end),
+    periodTotals(conds, fy.start, fy.end),
+    db
+      .select({
+        amount:
+          sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(
+            Number,
           ),
+      })
+      .from(transactions)
+      .innerJoin(
+        categories,
+        and(
+          eq(transactions.categoryId, categories.id),
+          eq(categories.userId, userId),
         ),
-      db
-        .select({
-          name: sql<string>`coalesce(${categories.name}, 'Uncategorized')`,
-          amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number),
-        })
-        .from(transactions)
-        .leftJoin(categories, eq(transactions.categoryId, categories.id))
-        .where(
-          and(
-            ...conds,
-            eq(transactions.type, "expense"),
-            gte(transactions.occurredAt, thisM.start),
-            lt(transactions.occurredAt, thisM.end),
+      )
+      .where(
+        and(
+          ...conds,
+          eq(transactions.type, "expense"),
+          gte(transactions.occurredAt, thisM.start),
+          lt(transactions.occurredAt, thisM.end),
+          eq(categories.kind, "expense"),
+          inArray(categories.name, AI_CATEGORIES),
+        ),
+      ),
+    db
+      .select({
+        name: sql<string>`coalesce(${categories.name}, 'Uncategorized')`,
+        amount:
+          sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(
+            Number,
           ),
-        )
-        .groupBy(categories.name)
-        .orderBy(sql`2 desc`)
-        .limit(1),
-      projectId === "all" ? listProjectsWithStats() : Promise.resolve([]),
-      listUpcoming("7", scoped),
-      listRecurring({ projectId: scoped }),
-      listGoals(),
-    ]);
+      })
+      .from(transactions)
+      .leftJoin(
+        categories,
+        and(
+          eq(transactions.categoryId, categories.id),
+          eq(categories.userId, userId),
+        ),
+      )
+      .where(
+        and(
+          ...conds,
+          eq(transactions.type, "expense"),
+          gte(transactions.occurredAt, thisM.start),
+          lt(transactions.occurredAt, thisM.end),
+        ),
+      )
+      .groupBy(categories.name)
+      .orderBy(sql`2 desc`)
+      .limit(1),
+    projectId === "all" ? listProjectsWithStats() : Promise.resolve([]),
+    listUpcoming("7", scoped),
+    listRecurring({ projectId: scoped }),
+    listDeposits({ projectId: scoped }),
+    listGoals(),
+  ]);
 
   const out: InsightCard[] = [];
 
@@ -173,7 +259,9 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
 
   // Top project by profit (all projects view only)
   if (projectId === "all") {
-    const top = projects.filter((p) => !p.isArchived).sort((a, b) => b.net - a.net)[0];
+    const top = projects
+      .filter((p) => !p.isArchived)
+      .sort((a, b) => b.net - a.net)[0];
     if (top && top.net > 0) {
       out.push({
         id: "top-project",
@@ -230,6 +318,39 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
     });
   }
 
+  // Deposits maturing in the next 30 days
+  const maturingSoon = deposits.filter(
+    (d) =>
+      d.status === "active" && d.daysToMaturity >= 0 && d.daysToMaturity <= 30,
+  );
+  if (maturingSoon.length > 0) {
+    const sum = maturingSoon.reduce((s, d) => s + d.maturityAmount, 0);
+    out.push({
+      id: "deposit-maturing",
+      severity: "success",
+      icon: "landmark",
+      title: `${maturingSoon.length} deposit${maturingSoon.length === 1 ? "" : "s"} maturing soon (${formatINR(sum, { decimals: false })}).`,
+    });
+  }
+  // RD installments due in the next 7 days
+  const rdDue = deposits.filter(
+    (d) =>
+      d.type === "rd" &&
+      d.status === "active" &&
+      d.daysUntil != null &&
+      d.daysUntil >= 0 &&
+      d.daysUntil <= 7,
+  );
+  if (rdDue.length > 0) {
+    const sum = rdDue.reduce((s, d) => s + d.principalAmount, 0);
+    out.push({
+      id: "rd-due",
+      severity: "info",
+      icon: "piggy-bank",
+      title: `${rdDue.length} RD installment${rdDue.length === 1 ? "" : "s"} (${formatINR(sum, { decimals: false })}) due this week.`,
+    });
+  }
+
   // Savings goals: behind schedule / achieved
   const behind = goals.filter((g) => g.status === "active" && !g.onTrack);
   if (behind.length > 0) {
@@ -240,7 +361,9 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
       title: `${behind.length} savings goal${behind.length === 1 ? " is" : "s are"} behind schedule.`,
     });
   }
-  const achieved = goals.filter((g) => g.status !== "archived" && g.savedAmount >= g.targetAmount);
+  const achieved = goals.filter(
+    (g) => g.status !== "archived" && g.savedAmount >= g.targetAmount,
+  );
   if (achieved.length > 0) {
     out.push({
       id: "goal-achieved",

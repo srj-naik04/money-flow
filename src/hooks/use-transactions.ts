@@ -16,9 +16,14 @@ import type {
   TransactionUpdateInput,
 } from "@/lib/schemas/transaction";
 
-function buildParams(filters: TransactionFilters, cursor?: string, limit = 50): string {
+function buildParams(
+  filters: TransactionFilters,
+  cursor?: string,
+  limit = 50,
+): string {
   const p = new URLSearchParams();
-  if (filters.projectId && filters.projectId !== "all") p.set("projectId", filters.projectId);
+  if (filters.projectId && filters.projectId !== "all")
+    p.set("projectId", filters.projectId);
   if (filters.type && filters.type !== "all") p.set("type", filters.type);
   if (filters.categoryId) p.set("categoryId", filters.categoryId);
   if (filters.accountId) p.set("accountId", filters.accountId);
@@ -50,17 +55,21 @@ export function useTransactionTotals(filters: TransactionFilters) {
     queryKey: qk.transactionsTotals(filters),
     queryFn: ({ signal }) => {
       const p = new URLSearchParams();
-      if (filters.projectId && filters.projectId !== "all") p.set("projectId", filters.projectId);
+      if (filters.projectId && filters.projectId !== "all")
+        p.set("projectId", filters.projectId);
       if (filters.type && filters.type !== "all") p.set("type", filters.type);
       if (filters.categoryId) p.set("categoryId", filters.categoryId);
       if (filters.accountId) p.set("accountId", filters.accountId);
       if (filters.from) p.set("from", filters.from);
       if (filters.to) p.set("to", filters.to);
       if (filters.q) p.set("q", filters.q);
-      return api.get<{ income: number; expense: number; gst: number; net: number; count: number }>(
-        `/api/transactions/totals?${p}`,
-        signal,
-      );
+      return api.get<{
+        income: number;
+        expense: number;
+        gst: number;
+        net: number;
+        count: number;
+      }>(`/api/transactions/totals?${p}`, signal);
     },
     placeholderData: keepPreviousData,
   });
@@ -78,8 +87,13 @@ export function useCreateTransaction() {
 export function useUpdateTransaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: TransactionUpdateInput }) =>
-      api.patch<TransactionDTO>(`/api/transactions/${id}`, input),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: TransactionUpdateInput;
+    }) => api.patch<TransactionDTO>(`/api/transactions/${id}`, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }
@@ -87,7 +101,8 @@ export function useUpdateTransaction() {
 export function useDeleteTransaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.del<{ id: string }>(`/api/transactions/${id}`),
+    mutationFn: (id: string) =>
+      api.del<{ id: string }>(`/api/transactions/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }
@@ -96,7 +111,10 @@ export function useBulkDeleteTransactions() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (ids: string[]) =>
-      api.post<{ deleted: number }>("/api/transactions/bulk", { op: "delete", ids }),
+      api.post<{ deleted: number }>("/api/transactions/bulk", {
+        op: "delete",
+        ids,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

@@ -6,7 +6,9 @@ import { projectCreateSchema } from "@/lib/schemas/project";
 
 export const GET = withHandler(async (req: NextRequest) => {
   const withStats = req.nextUrl.searchParams.get("stats") === "1";
-  const data = withStats ? await repo.listProjectsWithStats() : await repo.listProjects();
+  const data = withStats
+    ? await repo.listProjectsWithStats()
+    : await repo.listProjects();
   return ok(data);
 });
 

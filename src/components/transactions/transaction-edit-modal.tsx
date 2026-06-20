@@ -8,7 +8,10 @@ import { toast } from "sonner";
 
 import { FormModal } from "@/components/forms/form-modal";
 import { Field } from "@/components/forms/field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
 import { Button } from "@/components/ui/button";
@@ -71,7 +74,9 @@ export function TransactionEditModal({
       // For GST-exclusive rows the user entered the base (gross = base + gst),
       // so seed the base; for inclusive (or no GST) seed the gross. Prevents
       // the server re-adding GST on every save.
-      amount: t ? String((t.gstIncluded ? t.grossAmount : t.baseAmount) / 100) : "",
+      amount: t
+        ? String((t.gstIncluded ? t.grossAmount : t.baseAmount) / 100)
+        : "",
       occurredAt: t?.occurredAt ?? "",
       projectId: t?.projectId ?? undefined,
       categoryId: t?.categoryId ?? undefined,
@@ -85,19 +90,38 @@ export function TransactionEditModal({
     },
   });
 
-  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({ value: p.id, label: p.name }));
-  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({ value: a.id, label: a.name }));
+  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
+  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
   const categoryOptions: SelectOption[] = (categories ?? [])
-    .filter((c) => (isExpense ? c.kind === "expense" : c.kind === "income") && !c.isArchived)
+    .filter(
+      (c) =>
+        (isExpense ? c.kind === "expense" : c.kind === "income") &&
+        !c.isArchived,
+    )
     .map((c) => ({ value: c.id, label: c.name }));
-  const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({ value: String(r), label: formatGstRate(r) }));
+  const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({
+    value: String(r),
+    label: formatGstRate(r),
+  }));
 
   const amount = watch("amount");
   const gstEnabled = watch("gstEnabled");
   const gstIncluded = watch("gstIncluded");
   const gstRateBps = Number(watch("gstRateBps"));
   const split = useMemo(
-    () => computeGst({ amountPaise: toPaise(amount), rateBps: gstRateBps, inclusive: gstIncluded, gstEnabled }),
+    () =>
+      computeGst({
+        amountPaise: toPaise(amount),
+        rateBps: gstRateBps,
+        inclusive: gstIncluded,
+        gstEnabled,
+      }),
     [amount, gstRateBps, gstIncluded, gstEnabled],
   );
 
@@ -145,14 +169,23 @@ export function TransactionEditModal({
     <FormModal open={open} onOpenChange={onOpenChange} title="Edit Transaction">
       <form onSubmit={onSubmit} className="space-y-4 pt-2">
         <Field label="Amount" htmlFor="e-amount" error={errors.amount?.message}>
-          <AmountInput id="e-amount" autoFocus aria-invalid={!!errors.amount} {...register("amount")} />
+          <AmountInput
+            id="e-amount"
+            autoFocus
+            aria-invalid={!!errors.amount}
+            {...register("amount")}
+          />
         </Field>
 
         {isExpense ? (
           <div className="rounded-lg border bg-muted/30 p-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">GST</span>
-              <Switch checked={gstEnabled} onCheckedChange={(v) => setValue("gstEnabled", v)} aria-label="GST" />
+              <Switch
+                checked={gstEnabled}
+                onCheckedChange={(v) => setValue("gstEnabled", v)}
+                aria-label="GST"
+              />
             </div>
             {gstEnabled ? (
               <div className="mt-3 space-y-3">
@@ -162,13 +195,21 @@ export function TransactionEditModal({
                       control={control}
                       name="gstRateBps"
                       render={({ field }) => (
-                        <EntitySelect value={field.value} onChange={field.onChange} options={gstRateOptions} />
+                        <EntitySelect
+                          value={field.value}
+                          onChange={field.onChange}
+                          options={gstRateOptions}
+                        />
                       )}
                     />
                   </Field>
                   <Field label="Includes GST">
                     <div className="flex h-10 items-center">
-                      <Switch checked={gstIncluded} onCheckedChange={(v) => setValue("gstIncluded", v)} aria-label="Includes GST" />
+                      <Switch
+                        checked={gstIncluded}
+                        onCheckedChange={(v) => setValue("gstIncluded", v)}
+                        aria-label="Includes GST"
+                      />
                     </div>
                   </Field>
                 </div>
@@ -179,7 +220,10 @@ export function TransactionEditModal({
                   </div>
                   <div>
                     <p className="text-muted-foreground">GST</p>
-                    <Money paise={split.gst} className="font-medium text-warning-foreground" />
+                    <Money
+                      paise={split.gst}
+                      className="font-medium text-warning-foreground"
+                    />
                   </div>
                   <div>
                     <p className="text-muted-foreground">Total</p>
@@ -192,7 +236,11 @@ export function TransactionEditModal({
         ) : null}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date" htmlFor="e-date" error={errors.occurredAt?.message}>
+          <Field
+            label="Date"
+            htmlFor="e-date"
+            error={errors.occurredAt?.message}
+          >
             <DateField id="e-date" {...register("occurredAt")} />
           </Field>
           <Field label="Project">
@@ -200,7 +248,13 @@ export function TransactionEditModal({
               control={control}
               name="projectId"
               render={({ field }) => (
-                <EntitySelect value={field.value} onChange={field.onChange} options={projectOptions} placeholder="Unassigned" clearable />
+                <EntitySelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={projectOptions}
+                  placeholder="Unassigned"
+                  clearable
+                />
               )}
             />
           </Field>
@@ -213,7 +267,12 @@ export function TransactionEditModal({
                 control={control}
                 name="accountId"
                 render={({ field }) => (
-                  <EntitySelect value={field.value} onChange={field.onChange} options={accountOptions} placeholder="Source…" />
+                  <EntitySelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={accountOptions}
+                    placeholder="Source…"
+                  />
                 )}
               />
             </Field>
@@ -222,7 +281,12 @@ export function TransactionEditModal({
                 control={control}
                 name="transferAccountId"
                 render={({ field }) => (
-                  <EntitySelect value={field.value} onChange={field.onChange} options={accountOptions} placeholder="Destination…" />
+                  <EntitySelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={accountOptions}
+                    placeholder="Destination…"
+                  />
                 )}
               />
             </Field>
@@ -234,7 +298,13 @@ export function TransactionEditModal({
                 control={control}
                 name="categoryId"
                 render={({ field }) => (
-                  <EntitySelect value={field.value} onChange={field.onChange} options={categoryOptions} placeholder="Select…" clearable />
+                  <EntitySelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={categoryOptions}
+                    placeholder="Select…"
+                    clearable
+                  />
                 )}
               />
             </Field>
@@ -243,7 +313,13 @@ export function TransactionEditModal({
                 control={control}
                 name="accountId"
                 render={({ field }) => (
-                  <EntitySelect value={field.value} onChange={field.onChange} options={accountOptions} placeholder="Select…" clearable />
+                  <EntitySelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={accountOptions}
+                    placeholder="Select…"
+                    clearable
+                  />
                 )}
               />
             </Field>
@@ -261,7 +337,12 @@ export function TransactionEditModal({
         </Field>
 
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>

@@ -12,8 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
+import { Money } from "@/components/common/money";
 
 import { useCreateRecurring, useUpdateRecurring } from "@/hooks/use-recurring";
 import { useProjects } from "@/hooks/use-projects";
@@ -32,8 +36,11 @@ import type {
   RecurringUpdateInput,
 } from "@/lib/schemas/recurring";
 
-const TITLES: Record<RecurringTemplate, { amountLabel: string; submit: string }> = {
-  salary: { amountLabel: "Amount", submit: "Salary" },
+const TITLES: Record<
+  RecurringTemplate,
+  { amountLabel: string; submit: string }
+> = {
+  salary: { amountLabel: "Net (take-home)", submit: "Salary" },
   emi: { amountLabel: "EMI / installment", submit: "EMI" },
   sip: { amountLabel: "Amount / cycle", submit: "SIP" },
 };
@@ -48,7 +55,10 @@ function makeSchema(template: RecurringTemplate) {
   return z
     .object({
       name: z.string().trim().min(1, "Name is required"),
-      amount: z.string().refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
+      amount: z
+        .string()
+        .refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
+      grossAmount: z.string().optional(),
       billingCycle: z.enum(["monthly", "quarterly", "half_yearly", "yearly"]),
       anchorDate: z.string().min(1, "Pick a date"),
       projectId: z.string().optional(),
@@ -116,15 +126,24 @@ export function RecurringForm({
     defaultValues: {
       name: item?.name ?? "",
       amount: item ? String(item.amount / 100) : "",
+      grossAmount:
+        item?.grossSalary != null ? String(item.grossSalary / 100) : "",
       billingCycle: item?.billingCycle ?? "monthly",
       anchorDate: item?.anchorDate ?? todayISO(),
-      projectId: item?.projectId ?? (activeProjectId !== "all" ? activeProjectId : undefined),
+      projectId:
+        item?.projectId ??
+        (activeProjectId !== "all" ? activeProjectId : undefined),
       categoryId: item?.categoryId ?? undefined,
       accountId: item?.accountId ?? undefined,
       investmentId: item?.investmentId ?? undefined,
-      totalInstallments: item?.totalInstallments ? String(item.totalInstallments) : "",
-      principalAmount: item?.principalAmount ? String(item.principalAmount / 100) : "",
-      interestRatePct: item?.interestRateBps != null ? String(item.interestRateBps / 100) : "",
+      totalInstallments: item?.totalInstallments
+        ? String(item.totalInstallments)
+        : "",
+      principalAmount: item?.principalAmount
+        ? String(item.principalAmount / 100)
+        : "",
+      interestRatePct:
+        item?.interestRateBps != null ? String(item.interestRateBps / 100) : "",
       gstEnabled: item ? item.gstRateBps > 0 : false,
       gstRateBps: String(item?.gstRateBps || 1800),
       autoPost: item?.autoPost ?? true,
@@ -132,23 +151,37 @@ export function RecurringForm({
     },
   });
 
-  const categoryKind: CategoryKind = template === "salary" ? "income" : "expense";
-  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({ value: p.id, label: p.name }));
+  const categoryKind: CategoryKind =
+    template === "salary" ? "income" : "expense";
+  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
   const categoryOptions: SelectOption[] = (categories ?? [])
     .filter((c) => c.kind === categoryKind && !c.isArchived)
     .map((c) => ({ value: c.id, label: c.name }));
-  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({ value: a.id, label: a.name }));
+  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
   const investmentOptions: SelectOption[] = (investments ?? []).map((i) => ({
     value: i.id,
     label: i.name,
   }));
-  const cycleOptions: SelectOption[] = BILLING_CYCLES.map((c) => ({ value: c.value, label: c.label }));
+  const cycleOptions: SelectOption[] = BILLING_CYCLES.map((c) => ({
+    value: c.value,
+    label: c.label,
+  }));
   const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({
     value: String(r),
     label: formatGstRate(r),
   }));
 
   const gstEnabled = watch("gstEnabled");
+  const grossDeductions = Math.max(
+    0,
+    toPaise(watch("grossAmount") || "0") - toPaise(watch("amount") || "0"),
+  );
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -156,21 +189,33 @@ export function RecurringForm({
         const input: RecurringUpdateInput = {
           name: values.name,
           amount: toPaise(values.amount) / 100,
+          grossAmount:
+            template === "salary"
+              ? values.grossAmount
+                ? toPaise(values.grossAmount) / 100
+                : 0
+              : undefined,
           billingCycle: values.billingCycle,
           anchorDate: values.anchorDate,
           autoPost: values.autoPost,
           accountId: values.accountId || null,
           projectId: values.projectId || null,
           notes: values.notes || null,
-          ...(template !== "sip" ? { categoryId: values.categoryId || null } : {}),
+          ...(template !== "sip"
+            ? { categoryId: values.categoryId || null }
+            : {}),
           ...(template === "emi"
             ? {
                 gstEnabled: values.gstEnabled,
                 gstIncluded: true,
                 gstRateBps: Number(values.gstRateBps),
                 totalInstallments: Number(values.totalInstallments),
-                principalAmount: values.principalAmount ? toPaise(values.principalAmount) / 100 : undefined,
-                interestRatePct: values.interestRatePct ? Number(values.interestRatePct) : undefined,
+                principalAmount: values.principalAmount
+                  ? toPaise(values.principalAmount) / 100
+                  : undefined,
+                interestRatePct: values.interestRatePct
+                  ? Number(values.interestRatePct)
+                  : undefined,
               }
             : {}),
         };
@@ -181,13 +226,18 @@ export function RecurringForm({
           template,
           name: values.name,
           amount: toPaise(values.amount) / 100,
+          grossAmount:
+            template === "salary" && values.grossAmount
+              ? toPaise(values.grossAmount) / 100
+              : undefined,
           billingCycle: values.billingCycle,
           anchorDate: values.anchorDate,
           autoRenew: true,
           autoPost: values.autoPost,
           accountId: values.accountId || null,
           projectId: values.projectId || null,
-          categoryId: template === "sip" ? undefined : values.categoryId || null,
+          categoryId:
+            template === "sip" ? undefined : values.categoryId || null,
           gstEnabled: template === "emi" ? values.gstEnabled : false,
           gstIncluded: true,
           gstRateBps: template === "emi" ? Number(values.gstRateBps) : 0,
@@ -195,9 +245,12 @@ export function RecurringForm({
             template === "emi" && values.principalAmount
               ? toPaise(values.principalAmount) / 100
               : undefined,
-          totalInstallments: template === "emi" ? Number(values.totalInstallments) : undefined,
+          totalInstallments:
+            template === "emi" ? Number(values.totalInstallments) : undefined,
           interestRatePct:
-            template === "emi" && values.interestRatePct ? Number(values.interestRatePct) : undefined,
+            template === "emi" && values.interestRatePct
+              ? Number(values.interestRatePct)
+              : undefined,
           investmentId: template === "sip" ? values.investmentId : undefined,
           notes: values.notes || null,
         };
@@ -228,19 +281,45 @@ export function RecurringForm({
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label={TITLES[template].amountLabel} htmlFor="r-amt" error={errors.amount?.message}>
-          <AmountInput id="r-amt" aria-invalid={!!errors.amount} {...register("amount")} />
+        <Field
+          label={TITLES[template].amountLabel}
+          htmlFor="r-amt"
+          error={errors.amount?.message}
+        >
+          <AmountInput
+            id="r-amt"
+            aria-invalid={!!errors.amount}
+            {...register("amount")}
+          />
         </Field>
         <Field label="Frequency">
           <Controller
             control={control}
             name="billingCycle"
             render={({ field }) => (
-              <EntitySelect value={field.value} onChange={field.onChange} options={cycleOptions} />
+              <EntitySelect
+                value={field.value}
+                onChange={field.onChange}
+                options={cycleOptions}
+              />
             )}
           />
         </Field>
       </div>
+
+      {template === "salary" ? (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Monthly gross (CTC)" htmlFor="r-gross" hint="Optional">
+            <AmountInput id="r-gross" {...register("grossAmount")} />
+          </Field>
+          <div className="flex flex-col justify-center rounded-lg border bg-muted/30 px-3">
+            <span className="text-xs text-muted-foreground">
+              Deductions (tax, PF…)
+            </span>
+            <Money paise={grossDeductions} className="text-sm font-semibold" />
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <Field
@@ -380,13 +459,20 @@ export function RecurringForm({
       ) : null}
 
       <Field label="Notes" htmlFor="r-notes">
-        <Textarea id="r-notes" rows={2} placeholder="Optional…" {...register("notes")} />
+        <Textarea
+          id="r-notes"
+          rows={2}
+          placeholder="Optional…"
+          {...register("notes")}
+        />
       </Field>
 
       <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
         <div className="min-w-0 pr-3">
           <label htmlFor="r-auto" className="text-sm font-medium">
-            {template === "sip" ? "Record investment when marked done" : "Auto-post to ledger"}
+            {template === "sip"
+              ? "Record investment when marked done"
+              : "Auto-post to ledger"}
           </label>
           <p className="text-xs text-muted-foreground">
             {template === "salary"
@@ -400,17 +486,30 @@ export function RecurringForm({
           control={control}
           name="autoPost"
           render={({ field }) => (
-            <Switch id="r-auto" checked={field.value} onCheckedChange={field.onChange} />
+            <Switch
+              id="r-auto"
+              checked={field.value}
+              onCheckedChange={field.onChange}
+            />
           )}
         />
       </div>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onDone} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDone}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : editing ? "Save" : `Add ${TITLES[template].submit}`}
+          {isSubmitting
+            ? "Saving…"
+            : editing
+              ? "Save"
+              : `Add ${TITLES[template].submit}`}
         </Button>
       </div>
     </form>

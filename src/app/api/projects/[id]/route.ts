@@ -2,7 +2,10 @@ import { NextRequest } from "next/server";
 import { withHandler, parseJson } from "@/server/http/api-handler";
 import { ok } from "@/server/http/respond";
 import * as repo from "@/server/repositories/projects.repo";
-import { projectUpdateSchema, projectDeleteSchema } from "@/lib/schemas/project";
+import {
+  projectUpdateSchema,
+  projectDeleteSchema,
+} from "@/lib/schemas/project";
 
 type Ctx = { params: Promise<{ id: string }> };
 

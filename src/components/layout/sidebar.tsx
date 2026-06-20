@@ -29,7 +29,9 @@ export function Sidebar() {
           <Wallet className="size-4" />
         </div>
         {!collapsed ? (
-          <span className="font-heading text-base font-semibold tracking-tight">MoneyFlow</span>
+          <span className="font-heading text-base font-semibold tracking-tight">
+            MoneyFlow
+          </span>
         ) : null}
       </div>
 
@@ -52,7 +54,9 @@ export function Sidebar() {
               )}
             >
               <Icon className="size-5 shrink-0" aria-hidden="true" />
-              {!collapsed ? <span className="truncate">{item.label}</span> : null}
+              {!collapsed ? (
+                <span className="truncate">{item.label}</span>
+              ) : null}
             </Link>
           );
         })}

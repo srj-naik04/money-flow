@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Target, MoreHorizontal, Pencil, Trash2, CalendarDays } from "lucide-react";
+import {
+  Plus,
+  Target,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  CalendarDays,
+} from "lucide-react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -25,12 +32,24 @@ import type { GoalDTO } from "@/types/domain";
 
 function statusMeta(g: GoalDTO): { label: string; badge: string; bar: string } {
   if (g.status === "achieved" || g.savedAmount >= g.targetAmount) {
-    return { label: "Achieved", badge: "bg-positive-muted text-positive", bar: "bg-positive" };
+    return {
+      label: "Achieved",
+      badge: "bg-positive-muted text-positive",
+      bar: "bg-positive",
+    };
   }
   if (!g.onTrack) {
-    return { label: "Behind", badge: "bg-negative-muted text-negative", bar: "bg-warning" };
+    return {
+      label: "Behind",
+      badge: "bg-negative-muted text-negative",
+      bar: "bg-warning",
+    };
   }
-  return { label: "On track", badge: "bg-info-muted text-info-foreground", bar: "bg-primary" };
+  return {
+    label: "On track",
+    badge: "bg-info-muted text-info-foreground",
+    bar: "bg-primary",
+  };
 }
 
 export function GoalsPanel() {
@@ -50,7 +69,11 @@ export function GoalsPanel() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div className="grid flex-1 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <StatCard label="Saved" value={<Money paise={totalSaved} />} icon={Target} />
+          <StatCard
+            label="Saved"
+            value={<Money paise={totalSaved} />}
+            icon={Target}
+          />
           <StatCard label="Target" value={<Money paise={totalTarget} />} />
           <StatCard label="Goals" value={goals.length} />
         </div>
@@ -67,11 +90,17 @@ export function GoalsPanel() {
       </div>
 
       {isError && !data ? (
-        <ErrorState message={(error as Error)?.message} onRetry={() => void refetch()} />
+        <ErrorState
+          message={(error as Error)?.message}
+          onRetry={() => void refetch()}
+        />
       ) : !data && isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-xl border bg-muted/40" />
+            <div
+              key={i}
+              className="h-36 animate-pulse rounded-xl border bg-muted/40"
+            />
           ))}
         </div>
       ) : goals.length === 0 ? (
@@ -85,7 +114,10 @@ export function GoalsPanel() {
           {goals.map((g) => {
             const meta = statusMeta(g);
             return (
-              <div key={g.id} className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+              <div
+                key={g.id}
+                className="flex flex-col gap-3 rounded-xl border bg-card p-4"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -101,13 +133,20 @@ export function GoalsPanel() {
                     </div>
                     {g.targetDate ? (
                       <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                        <CalendarDays className="size-3" /> by {formatDate(g.targetDate)}
+                        <CalendarDays className="size-3" /> by{" "}
+                        {formatDate(g.targetDate)}
                       </p>
                     ) : null}
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      render={<Button variant="ghost" size="icon-sm" aria-label="Actions" />}
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Actions"
+                        />
+                      }
                     >
                       <MoreHorizontal className="size-4" />
                     </DropdownMenuTrigger>
@@ -120,7 +159,10 @@ export function GoalsPanel() {
                       >
                         <Pencil className="size-4" /> Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem variant="destructive" onClick={() => setDeleting(g)}>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => setDeleting(g)}
+                      >
                         <Trash2 className="size-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -136,7 +178,8 @@ export function GoalsPanel() {
                   </div>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className="font-medium">
-                      <Money paise={g.savedAmount} /> <span className="text-muted-foreground">of</span>{" "}
+                      <Money paise={g.savedAmount} />{" "}
+                      <span className="text-muted-foreground">of</span>{" "}
                       <Money paise={g.targetAmount} />
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">
@@ -151,7 +194,8 @@ export function GoalsPanel() {
                       "Fully funded 🎉"
                     ) : g.targetDate ? (
                       <>
-                        <Money paise={g.monthlyNeeded} compact />/mo to stay on track
+                        <Money paise={g.monthlyNeeded} compact />
+                        /mo to stay on track
                       </>
                     ) : (
                       <>
@@ -159,7 +203,11 @@ export function GoalsPanel() {
                       </>
                     )}
                   </p>
-                  <Button size="sm" variant="outline" onClick={() => setContributing(g)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setContributing(g)}
+                  >
                     <Plus className="size-4" /> Contribute
                   </Button>
                 </div>
@@ -169,7 +217,11 @@ export function GoalsPanel() {
         </div>
       )}
 
-      <GoalFormModal open={formOpen} onOpenChange={setFormOpen} goal={editing} />
+      <GoalFormModal
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        goal={editing}
+      />
       <GoalContributionDialog
         open={!!contributing}
         onOpenChange={(o) => !o && setContributing(undefined)}

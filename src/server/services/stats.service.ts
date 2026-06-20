@@ -1,12 +1,27 @@
-import { and, eq, gte, isNull, lt, notInArray, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { transactions, accounts } from "@/db/schema";
-import { archivedProjectIds, activeProjectCount } from "@/server/repositories/projects.repo";
+import {
+  archivedProjectIds,
+  activeProjectCount,
+} from "@/server/repositories/projects.repo";
 import { listSubscriptions } from "@/server/repositories/subscriptions.repo";
 import { listInvestments } from "@/server/repositories/investments.repo";
 import { listRecurring } from "@/server/repositories/recurring.repo";
+import { listDeposits } from "@/server/repositories/deposits.repo";
 import { goalsSummary } from "@/server/repositories/goals.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import {
   subsMonthlyTotal,
   subsYearlyTotal,
@@ -16,13 +31,28 @@ import {
   totalInvested as sumInvested,
   portfolioValue as sumPortfolio,
 } from "@/lib/finance";
-import { todayISO, monthRange, fiscalYearRange, addMonthsISO } from "@/lib/date";
+import {
+  todayISO,
+  monthRange,
+  fiscalYearRange,
+  addMonthsISO,
+} from "@/lib/date";
 import type { DashboardStats, UpcomingPaymentDTO } from "@/types/domain";
 
-type PeriodTotals = { income: number; expense: number; gst: number; net: number };
+type PeriodTotals = {
+  income: number;
+  expense: number;
+  gst: number;
+  net: number;
+};
 
-function buildConds(projectId: string, includeArchived: boolean, archived: string[]): SQL[] {
-  const conds: SQL[] = [];
+function buildConds(
+  projectId: string,
+  includeArchived: boolean,
+  archived: string[],
+): SQL[] {
+  // Tenant scope first — every periodTotals query funnels through here.
+  const conds: SQL[] = [eq(transactions.userId, getCurrentUserId())];
   if (projectId && projectId !== "all") {
     conds.push(eq(transactions.projectId, projectId));
   } else if (!includeArchived && archived.length) {
@@ -35,24 +65,44 @@ function buildConds(projectId: string, includeArchived: boolean, archived: strin
   return conds;
 }
 
-async function periodTotals(conds: SQL[], from?: string, to?: string): Promise<PeriodTotals> {
+async function periodTotals(
+  conds: SQL[],
+  from?: string,
+  to?: string,
+): Promise<PeriodTotals> {
   const all = [...conds];
   if (from) all.push(gte(transactions.occurredAt, from));
   if (to) all.push(lt(transactions.occurredAt, to));
   const [row] = await db
     .select({
-      income: sql<number>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
-      gst: sql<number>`coalesce(sum(${transactions.gstAmount}), 0)`.mapWith(Number),
-      net: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(Number),
+      income:
+        sql<number>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(
+          Number,
+        ),
+      expense:
+        sql<number>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(
+          Number,
+        ),
+      gst: sql<number>`coalesce(sum(${transactions.gstAmount}), 0)`.mapWith(
+        Number,
+      ),
+      net: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(
+        Number,
+      ),
     })
     .from(transactions)
     .where(all.length ? and(...all) : undefined);
   return row ?? { income: 0, expense: 0, gst: 0, net: 0 };
 }
 
-export async function getDashboardStats(projectId = "all"): Promise<DashboardStats> {
-  const [settings, archived] = await Promise.all([getSettingsRow(), archivedProjectIds()]);
+export async function getDashboardStats(
+  projectId = "all",
+): Promise<DashboardStats> {
+  const userId = getCurrentUserId();
+  const [settings, archived] = await Promise.all([
+    getSettingsRow(),
+    archivedProjectIds(),
+  ]);
   const includeArchived = settings.includeArchivedInTotals;
   const fyStartMonth = settings.fyStartMonth;
   const today = todayISO();
@@ -73,6 +123,7 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     subs,
     investments,
     recurring,
+    deposits,
     goalsSum,
     activeProjects,
     openingRow,
@@ -85,14 +136,25 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     listSubscriptions(scopedProject),
     listInvestments(scopedProject),
     listRecurring({ projectId: scopedProject }),
+    listDeposits({ projectId: scopedProject }),
     goalsSummary(),
     activeProjectCount(),
     db
-      .select({ sum: sql<number>`coalesce(sum(${accounts.openingBalance}), 0)`.mapWith(Number) })
-      .from(accounts),
+      .select({
+        sum: sql<number>`coalesce(sum(${accounts.openingBalance}), 0)`.mapWith(
+          Number,
+        ),
+      })
+      .from(accounts)
+      .where(eq(accounts.userId, userId)),
     db
-      .select({ sum: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(Number) })
-      .from(transactions),
+      .select({
+        sum: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(
+          Number,
+        ),
+      })
+      .from(transactions)
+      .where(eq(transactions.userId, userId)),
   ]);
 
   const activeSubs = subs.filter((s) => s.status === "active");
@@ -115,8 +177,13 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     .reduce((s, r) => s + r.monthlyEquivalent, 0);
   const activeEmis = activeRecurring.filter((r) => r.template === "emi");
   const emiMonthly = activeEmis.reduce((s, r) => s + r.monthlyEquivalent, 0);
-  const emiOutstanding = activeEmis.reduce((s, r) => s + (r.outstandingAmount ?? 0), 0);
-  const nextEmiItem = [...activeEmis].sort((a, b) => a.daysUntil - b.daysUntil)[0];
+  const emiOutstanding = activeEmis.reduce(
+    (s, r) => s + (r.outstandingAmount ?? 0),
+    0,
+  );
+  const nextEmiItem = [...activeEmis].sort(
+    (a, b) => a.daysUntil - b.daysUntil,
+  )[0];
   const nextEmi = nextEmiItem
     ? {
         id: nextEmiItem.id,
@@ -128,6 +195,31 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
   const sipMonthlyCommitment = activeRecurring
     .filter((r) => r.template === "sip")
     .reduce((s, r) => s + r.monthlyEquivalent, 0);
+
+  // Deposits (FD + RD).
+  const activeDeposits = deposits.filter((d) => d.status === "active");
+  const depositsInvested = activeDeposits.reduce(
+    (s, d) => s + d.investedAmount,
+    0,
+  );
+  const depositsMaturityValue = activeDeposits.reduce(
+    (s, d) => s + d.maturityAmount,
+    0,
+  );
+  const rdMonthlyCommitment = activeDeposits
+    .filter((d) => d.type === "rd")
+    .reduce((s, d) => s + d.monthlyEquivalent, 0);
+  const nextMaturityItem = [...activeDeposits].sort(
+    (a, b) => a.daysToMaturity - b.daysToMaturity,
+  )[0];
+  const nextMaturity = nextMaturityItem
+    ? {
+        id: nextMaturityItem.id,
+        name: nextMaturityItem.name,
+        amount: nextMaturityItem.maturityAmount,
+        date: nextMaturityItem.maturityDate,
+      }
+    : null;
 
   // Upcoming payments: active subscriptions due within 30 days, soonest first
   // (derived from the already-fetched subs — no extra query).
@@ -178,5 +270,9 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     goalsSaved: goalsSum.saved,
     goalsTarget: goalsSum.target,
     activeGoals: goalsSum.count,
+    depositsInvested,
+    depositsMaturityValue,
+    rdMonthlyCommitment,
+    nextMaturity,
   };
 }

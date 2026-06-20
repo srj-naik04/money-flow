@@ -11,7 +11,10 @@ export function useCalendar(month: string) {
   return useQuery({
     queryKey: qk.calendar(month, projectId),
     queryFn: ({ signal }) =>
-      api.get<CalendarBundle>(`/api/calendar?month=${month}&projectId=${projectId}`, signal),
+      api.get<CalendarBundle>(
+        `/api/calendar?month=${month}&projectId=${projectId}`,
+        signal,
+      ),
     placeholderData: keepPreviousData,
   });
 }

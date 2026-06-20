@@ -10,15 +10,30 @@ import { seedDatabase, clearDatabase } from "../src/db/seed";
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is missing from .env.local");
+
+  // Seeding/clearing is per-user — require an explicit target so we can never
+  // touch another user's (or everyone's) data by accident.
+  const userArg = process.argv
+    .find((a) => a.startsWith("--user="))
+    ?.split("=")[1];
+  const userId = userArg ?? process.env.SEED_USER_ID;
+  if (!userId) {
+    throw new Error(
+      "Provide a target user id: `--user=<id>` or SEED_USER_ID=<id>. Seeding/clearing is per-user.",
+    );
+  }
+
   const sql = neon(url);
   const db = drizzle(sql, { schema: { ...schema, ...relations } });
 
   if (process.argv.includes("--clear")) {
-    await clearDatabase(db);
-    console.log("✓ Cleared all data");
+    await clearDatabase(db, userId);
+    console.log(`✓ Cleared all data for user ${userId}`);
   } else {
-    await seedDatabase(db);
-    console.log("✓ Seeded sample data (4 projects, subscriptions, investments, transactions)");
+    await seedDatabase(db, userId);
+    console.log(
+      `✓ Seeded sample data for user ${userId} (projects, subscriptions, investments, transactions)`,
+    );
   }
 }
 

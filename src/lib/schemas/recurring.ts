@@ -21,7 +21,10 @@ export const recurringCreateSchema = z
   .object({
     template: zRecurringTemplate,
     name: zRequiredText("Name", 80),
+    /** Salary: this is the NET take-home that gets posted to the ledger. */
     amount: zPositiveRupees,
+    /** Salary only: monthly GROSS / CTC (must be >= net). */
+    grossAmount: zRupees.refine((v) => v >= 0, "Cannot be negative").optional(),
     billingCycle: zBillingCycle.default("monthly"),
     /** Next due date (advances by one cycle when marked done). */
     anchorDate: zIsoDate,
@@ -43,7 +46,10 @@ export const recurringCreateSchema = z
     notes: zOptionalText(1000),
   })
   .superRefine((v, ctx) => {
-    if (v.template === "emi" && (v.totalInstallments == null || v.totalInstallments < 1)) {
+    if (
+      v.template === "emi" &&
+      (v.totalInstallments == null || v.totalInstallments < 1)
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["totalInstallments"],
@@ -57,11 +63,24 @@ export const recurringCreateSchema = z
         message: "Pick the investment this SIP funds",
       });
     }
+    if (
+      v.template === "salary" &&
+      v.grossAmount != null &&
+      v.grossAmount > 0 &&
+      v.grossAmount < v.amount
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["grossAmount"],
+        message: "Gross can't be less than net take-home",
+      });
+    }
   });
 
 export const recurringUpdateSchema = z.object({
   name: zRequiredText("Name", 80).optional(),
   amount: zPositiveRupees.optional(),
+  grossAmount: zRupees.refine((v) => v >= 0, "Cannot be negative").optional(),
   billingCycle: zBillingCycle.optional(),
   anchorDate: zIsoDate.optional(),
   autoRenew: z.boolean().optional(),

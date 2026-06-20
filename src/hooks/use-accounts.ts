@@ -3,8 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
-import type { AccountDTO } from "@/types/domain";
-import type { AccountCreateInput, AccountUpdateInput } from "@/lib/schemas/account";
+import type { AccountDTO, AccountSpendDTO } from "@/types/domain";
+import type {
+  AccountCreateInput,
+  AccountUpdateInput,
+} from "@/lib/schemas/account";
 
 export function useAccounts() {
   return useQuery({
@@ -13,10 +16,19 @@ export function useAccounts() {
   });
 }
 
+export function useAccountSpending() {
+  return useQuery({
+    queryKey: qk.accountSpending(),
+    queryFn: ({ signal }) =>
+      api.get<AccountSpendDTO[]>("/api/accounts/spending", signal),
+  });
+}
+
 export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: AccountCreateInput) => api.post<AccountDTO>("/api/accounts", input),
+    mutationFn: (input: AccountCreateInput) =>
+      api.post<AccountDTO>("/api/accounts", input),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

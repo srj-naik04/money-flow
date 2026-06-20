@@ -1,9 +1,15 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { subscriptions, projects, categories } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { deriveSubscriptionAmounts } from "@/server/lib/derive";
-import { todayISO, cycleToMonths, fromISODate, advanceDueDate } from "@/lib/date";
+import {
+  todayISO,
+  cycleToMonths,
+  fromISODate,
+  advanceDueDate,
+} from "@/lib/date";
 import {
   subscriptionMonthlyPaise,
   subscriptionYearlyPaise,
@@ -69,22 +75,46 @@ function toDTO(r: Record<string, unknown>): SubscriptionDTO {
 }
 
 function baseQuery() {
+  const userId = getCurrentUserId();
+  // Join conditions also match user_id so enrichment (project/category names)
+  // can never surface another tenant's row even via a stray FK.
   return db
     .select(selectFields)
     .from(subscriptions)
-    .leftJoin(projects, eq(subscriptions.projectId, projects.id))
-    .leftJoin(categories, eq(subscriptions.categoryId, categories.id));
+    .leftJoin(
+      projects,
+      and(
+        eq(subscriptions.projectId, projects.id),
+        eq(projects.userId, userId),
+      ),
+    )
+    .leftJoin(
+      categories,
+      and(
+        eq(subscriptions.categoryId, categories.id),
+        eq(categories.userId, userId),
+      ),
+    );
 }
 
-export async function listSubscriptions(projectId?: string): Promise<SubscriptionDTO[]> {
-  const cond =
-    projectId && projectId !== "all" ? eq(subscriptions.projectId, projectId) : undefined;
-  const rows = await baseQuery().where(cond).orderBy(asc(subscriptions.anchorDate));
+export async function listSubscriptions(
+  projectId?: string,
+): Promise<SubscriptionDTO[]> {
+  const userId = getCurrentUserId();
+  const conds = [eq(subscriptions.userId, userId)];
+  if (projectId && projectId !== "all")
+    conds.push(eq(subscriptions.projectId, projectId));
+  const rows = await baseQuery()
+    .where(and(...conds))
+    .orderBy(asc(subscriptions.anchorDate));
   return rows.map((r) => toDTO(r as Record<string, unknown>));
 }
 
 export async function getSubscription(id: string): Promise<SubscriptionDTO> {
-  const [row] = await baseQuery().where(eq(subscriptions.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [row] = await baseQuery()
+    .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)))
+    .limit(1);
   if (!row) throw AppError.notFound("Subscription not found");
   return toDTO(row as Record<string, unknown>);
 }
@@ -92,6 +122,7 @@ export async function getSubscription(id: string): Promise<SubscriptionDTO> {
 export async function createSubscription(
   input: SubscriptionCreateInput,
 ): Promise<SubscriptionDTO> {
+  const userId = getCurrentUserId();
   const amounts = deriveSubscriptionAmounts({
     amount: input.amount,
     gstEnabled: input.gstEnabled,
@@ -101,6 +132,7 @@ export async function createSubscription(
   const [row] = await db
     .insert(subscriptions)
     .values({
+      userId,
       name: input.name,
       ...amounts,
       billingCycle: input.billingCycle,
@@ -119,14 +151,17 @@ export async function updateSubscription(
   id: string,
   input: SubscriptionUpdateInput,
 ): Promise<SubscriptionDTO> {
+  const userId = getCurrentUserId();
   const [existing] = await db
     .select()
     .from(subscriptions)
-    .where(eq(subscriptions.id, id))
+    .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)))
     .limit(1);
   if (!existing) throw AppError.notFound("Subscription not found");
 
-  const set: Partial<typeof subscriptions.$inferInsert> = { updatedAt: new Date() };
+  const set: Partial<typeof subscriptions.$inferInsert> = {
+    updatedAt: new Date(),
+  };
   if (input.name !== undefined) set.name = input.name;
   if (input.billingCycle !== undefined) set.billingCycle = input.billingCycle;
   if (input.anchorDate !== undefined) {
@@ -160,24 +195,31 @@ export async function updateSubscription(
     Object.assign(set, amounts);
   }
 
-  await db.update(subscriptions).set(set).where(eq(subscriptions.id, id));
+  await db
+    .update(subscriptions)
+    .set(set)
+    .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)));
   return getSubscription(id);
 }
 
 export async function deleteSubscription(id: string): Promise<void> {
+  const userId = getCurrentUserId();
   const deleted = await db
     .delete(subscriptions)
-    .where(eq(subscriptions.id, id))
+    .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)))
     .returning({ id: subscriptions.id });
   if (deleted.length === 0) throw AppError.notFound("Subscription not found");
 }
 
 /** Advance the next due date by exactly one billing cycle. */
-export async function markSubscriptionPaid(id: string): Promise<SubscriptionDTO> {
+export async function markSubscriptionPaid(
+  id: string,
+): Promise<SubscriptionDTO> {
+  const userId = getCurrentUserId();
   const [existing] = await db
     .select()
     .from(subscriptions)
-    .where(eq(subscriptions.id, id))
+    .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)))
     .limit(1);
   if (!existing) throw AppError.notFound("Subscription not found");
   const next = advanceDueDate(
@@ -188,7 +230,7 @@ export async function markSubscriptionPaid(id: string): Promise<SubscriptionDTO>
   await db
     .update(subscriptions)
     .set({ anchorDate: next, updatedAt: new Date() })
-    .where(eq(subscriptions.id, id));
+    .where(and(eq(subscriptions.id, id), eq(subscriptions.userId, userId)));
   return getSubscription(id);
 }
 
@@ -196,7 +238,9 @@ export async function listUpcoming(
   window: UpcomingWindow,
   projectId?: string,
 ): Promise<SubscriptionDTO[]> {
-  const all = (await listSubscriptions(projectId)).filter((s) => s.status === "active");
+  const all = (await listSubscriptions(projectId)).filter(
+    (s) => s.status === "active",
+  );
   const filtered = all.filter((s) => {
     if (window === "all") return true;
     if (window === "overdue") return s.bucket === "overdue";

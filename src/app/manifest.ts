@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "MoneyFlow",
     short_name: "MoneyFlow",
-    description: "Track cash flow, projects, GST, subscriptions and investments.",
+    description:
+      "Track cash flow, projects, GST, subscriptions and investments.",
     start_url: "/",
     scope: "/",
     display: "standalone",
@@ -14,7 +15,12 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["finance", "productivity"],
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+      {
+        src: "/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+        purpose: "maskable",
+      },
     ],
   };
 }

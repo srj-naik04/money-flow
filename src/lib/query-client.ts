@@ -7,15 +7,15 @@ export function makeQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // Data only changes on the user's own mutations (which invalidate the
-        // cache and refetch). Between writes it's effectively static, so a long
-        // staleTime makes navigation instant (served from the in-memory + idb
-        // cache) instead of re-hitting the Singapore DB on every page mount.
-        staleTime: 5 * 60_000,
+        // Short staleTime: navigation within the window is instant (served from
+        // the in-memory + idb cache), but a stale query still refetches on the
+        // next mount and when the tab regains focus — so changes made elsewhere
+        // (another device, or a direct DB edit) show up promptly. Mutations
+        // invalidate immediately, so you always see your own edits at once.
+        staleTime: 30_000,
         gcTime: DAY_MS, // keep in cache for offline reads
         retry: 2,
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
+        refetchOnWindowFocus: true,
         networkMode: "offlineFirst",
       },
       mutations: {

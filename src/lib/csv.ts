@@ -5,7 +5,8 @@ import Papa from "papaparse";
 function sanitizeCell(v: unknown): unknown {
   if (typeof v !== "string" || v === "") return v;
   const c = v[0];
-  if (c === "=" || c === "+" || c === "@" || c === "\t" || c === "\r") return `'${v}`;
+  if (c === "=" || c === "+" || c === "@" || c === "\t" || c === "\r")
+    return `'${v}`;
   if (c === "-" && !/^-\d/.test(v)) return `'${v}`; // a dash not starting a number
   return v;
 }
@@ -22,7 +23,11 @@ export function toCsv(rows: Record<string, unknown>[]): string {
 }
 
 /** Trigger a client-side download of text content as a file. */
-export function downloadText(filename: string, content: string, mime = "text/csv;charset=utf-8") {
+export function downloadText(
+  filename: string,
+  content: string,
+  mime = "text/csv;charset=utf-8",
+) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

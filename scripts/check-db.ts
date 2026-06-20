@@ -7,7 +7,8 @@ async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is missing from .env.local");
   const sql = neon(url);
-  const rows = await sql`select 1 as ok, current_database() as db, version() as version, now() as now`;
+  const rows =
+    await sql`select 1 as ok, current_database() as db, version() as version, now() as now`;
   const row = rows[0] as Record<string, unknown>;
   console.log("✓ Neon reachable");
   console.log("  db:     ", row.db);

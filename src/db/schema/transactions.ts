@@ -8,6 +8,7 @@ import {
   bigint,
   date,
   index,
+  uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -26,6 +27,8 @@ export const transactions = pgTable(
   "transactions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner (Neon Auth user id). Nullable until backfill, then set NOT NULL. */
+    userId: text("user_id"),
     type: txnTypeEnum("type").notNull(),
     projectId: uuid("project_id").references(() => projects.id, {
       onDelete: "set null",
@@ -52,27 +55,42 @@ export const transactions = pgTable(
     vendor: text("vendor"),
     notes: text("notes"),
     /** Transfer destination account (only for type = transfer). */
-    transferAccountId: uuid("transfer_account_id").references(() => accounts.id, {
-      onDelete: "set null",
-    }),
+    transferAccountId: uuid("transfer_account_id").references(
+      () => accounts.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     /** Transfer destination project (only for type = transfer). */
-    transferProjectId: uuid("transfer_project_id").references(() => projects.id, {
-      onDelete: "set null",
-    }),
-    /** Client-generated idempotency key (unique). */
-    clientId: text("client_id").notNull().unique(),
+    transferProjectId: uuid("transfer_project_id").references(
+      () => projects.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    /** Client-generated idempotency key (unique per user). */
+    clientId: text("client_id").notNull(),
     /** Optional fuzzy dedupe backstop. */
     dedupeHash: text("dedupe_hash"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
+    index("tx_user_idx").on(t.userId),
+    uniqueIndex("tx_user_client_uq").on(t.userId, t.clientId),
     index("tx_project_date_idx").on(t.projectId, t.occurredAt),
     index("tx_occurred_id_idx").on(t.occurredAt, t.id),
     index("tx_type_idx").on(t.type),
     index("tx_category_idx").on(t.categoryId),
     index("tx_dedupe_idx").on(t.dedupeHash),
-    check("tx_gst_reconciles", sql`${t.baseAmount} + ${t.gstAmount} = ${t.grossAmount}`),
+    check(
+      "tx_gst_reconciles",
+      sql`${t.baseAmount} + ${t.gstAmount} = ${t.grossAmount}`,
+    ),
     check(
       "tx_amounts_nonneg",
       sql`${t.grossAmount} >= 0 AND ${t.baseAmount} >= 0 AND ${t.gstAmount} >= 0`,

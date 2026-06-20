@@ -20,7 +20,9 @@ export function GoalFormModal({
       title={goal ? "Edit Goal" : "New Savings Goal"}
       description={goal ? undefined : "Set a target and track your progress."}
     >
-      {open ? <GoalForm goal={goal} onDone={() => onOpenChange(false)} /> : null}
+      {open ? (
+        <GoalForm goal={goal} onDone={() => onOpenChange(false)} />
+      ) : null}
     </FormModal>
   );
 }

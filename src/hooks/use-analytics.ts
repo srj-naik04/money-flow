@@ -12,7 +12,10 @@ export function useAnalytics(range: AnalyticsRange = "12m") {
   return useQuery({
     queryKey: qk.analytics("income_expense", projectId, range),
     queryFn: ({ signal }) =>
-      api.get<AnalyticsBundle>(`/api/analytics?projectId=${projectId}&range=${range}`, signal),
+      api.get<AnalyticsBundle>(
+        `/api/analytics?projectId=${projectId}&range=${range}`,
+        signal,
+      ),
     placeholderData: keepPreviousData,
   });
 }

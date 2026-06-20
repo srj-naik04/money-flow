@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreHorizontal, Pencil, Trash2, Check, CreditCard } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Check,
+  CreditCard,
+} from "lucide-react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -58,7 +65,10 @@ export function SubscriptionsPanel() {
   const [editing, setEditing] = useState<SubscriptionDTO | undefined>();
   const [deleting, setDeleting] = useState<SubscriptionDTO | undefined>();
 
-  const active = useMemo(() => (data ?? []).filter((s) => s.status === "active"), [data]);
+  const active = useMemo(
+    () => (data ?? []).filter((s) => s.status === "active"),
+    [data],
+  );
   const monthly = subsMonthlyTotal(
     active.map((s) => ({ amount: s.amount, billingCycle: s.billingCycle })),
   );
@@ -75,15 +85,25 @@ export function SubscriptionsPanel() {
       later: [],
     };
     for (const s of active) byBucket[s.bucket].push(s);
-    return order.filter((b) => byBucket[b].length > 0).map((b) => ({ bucket: b, items: byBucket[b] }));
+    return order
+      .filter((b) => byBucket[b].length > 0)
+      .map((b) => ({ bucket: b, items: byBucket[b] }));
   }, [active]);
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div className="grid flex-1 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <StatCard label="Monthly cost" value={<Money paise={monthly} />} icon={CreditCard} />
-          <StatCard label="Yearly cost" value={<Money paise={yearly} />} icon={CreditCard} />
+          <StatCard
+            label="Monthly cost"
+            value={<Money paise={monthly} />}
+            icon={CreditCard}
+          />
+          <StatCard
+            label="Yearly cost"
+            value={<Money paise={yearly} />}
+            icon={CreditCard}
+          />
           <StatCard label="Active" value={active.length} />
           <StatCard
             label="Overdue"
@@ -103,11 +123,17 @@ export function SubscriptionsPanel() {
       </div>
 
       {isError && !data ? (
-        <ErrorState message={(error as Error)?.message} onRetry={() => void refetch()} />
+        <ErrorState
+          message={(error as Error)?.message}
+          onRetry={() => void refetch()}
+        />
       ) : !data && isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl border bg-muted/40" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl border bg-muted/40"
+            />
           ))}
         </div>
       ) : active.length === 0 ? (
@@ -122,7 +148,9 @@ export function SubscriptionsPanel() {
             <section key={g.bucket} className="space-y-2">
               <h2 className="text-sm font-medium text-muted-foreground">
                 {bucketLabel[g.bucket]}{" "}
-                <span className="text-muted-foreground/60">({g.items.length})</span>
+                <span className="text-muted-foreground/60">
+                  ({g.items.length})
+                </span>
               </h2>
               <div className="overflow-hidden rounded-xl border bg-card">
                 {g.items.map((s) => (
@@ -132,7 +160,9 @@ export function SubscriptionsPanel() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        {s.projectColor ? <ProjectDot color={s.projectColor} /> : null}
+                        {s.projectColor ? (
+                          <ProjectDot color={s.projectColor} />
+                        ) : null}
                         <span className="truncate font-medium">{s.name}</span>
                         <span
                           className={cn(
@@ -144,14 +174,17 @@ export function SubscriptionsPanel() {
                         </span>
                       </div>
                       <p className="truncate text-xs text-muted-foreground">
-                        {[s.projectName, s.categoryName].filter(Boolean).join(" · ") || "—"} ·{" "}
-                        {formatDateShort(s.nextDue)}
+                        {[s.projectName, s.categoryName]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}{" "}
+                        · {formatDateShort(s.nextDue)}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <Money paise={s.amount} className="text-sm font-medium" />
                       <p className="text-xs text-muted-foreground">
-                        <Money paise={s.monthlyEquivalent} compact />/mo
+                        <Money paise={s.monthlyEquivalent} compact />
+                        /mo
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -161,7 +194,10 @@ export function SubscriptionsPanel() {
                         className="hidden gap-1 sm:inline-flex"
                         onClick={() =>
                           markPaid.mutate(s.id, {
-                            onSuccess: () => toast.success("Marked paid — advanced to next cycle"),
+                            onSuccess: () =>
+                              toast.success(
+                                "Marked paid — advanced to next cycle",
+                              ),
                           })
                         }
                       >
@@ -169,7 +205,13 @@ export function SubscriptionsPanel() {
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger
-                          render={<Button variant="ghost" size="icon-sm" aria-label="Actions" />}
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Actions"
+                            />
+                          }
                         >
                           <MoreHorizontal className="size-4" />
                         </DropdownMenuTrigger>
@@ -192,7 +234,10 @@ export function SubscriptionsPanel() {
                           >
                             <Pencil className="size-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem variant="destructive" onClick={() => setDeleting(s)}>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeleting(s)}
+                          >
                             <Trash2 className="size-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -206,7 +251,11 @@ export function SubscriptionsPanel() {
         </div>
       )}
 
-      <SubscriptionFormModal open={formOpen} onOpenChange={setFormOpen} subscription={editing} />
+      <SubscriptionFormModal
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        subscription={editing}
+      />
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(undefined)}

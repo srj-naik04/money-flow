@@ -280,7 +280,9 @@ label,
   [role="menuitem"],
   [role="option"],
   [role="tab"],
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="hidden"]
+    ),
   select,
   textarea {
     min-height: 2.75rem;
@@ -293,6 +295,31 @@ input,
 textarea,
 select {
   scroll-margin-block: 6rem;
+}
+
+/* Shimmer sweep for skeleton loaders — a premium step up from a flat pulse.
+   Disabled automatically by the reduced-motion block below. */
+@keyframes mf-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.mf-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.mf-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--foreground) 9%, transparent),
+    transparent
+  );
+  animation: mf-shimmer 1.6s infinite;
 }
 
 /* Reduced motion: disable non-essential animation */

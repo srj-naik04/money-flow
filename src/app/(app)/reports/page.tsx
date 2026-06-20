@@ -10,7 +10,10 @@ import { Money, Percent } from "@/components/common/money";
 import { ProjectDot } from "@/components/common/project-dot";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { useReport } from "@/hooks/use-reports";
 import { downloadText, toCsv } from "@/lib/csv";
 import type { ReportPeriod } from "@/types/api";
@@ -24,7 +27,13 @@ const periodOptions: SelectOption[] = [
   { value: "yearly", label: "Yearly" },
 ];
 
-function CategoryList({ title, items }: { title: string; items: NamedAmount[] }) {
+function CategoryList({
+  title,
+  items,
+}: {
+  title: string;
+  items: NamedAmount[];
+}) {
   const max = Math.max(1, ...items.map((i) => i.amount));
   return (
     <Card>
@@ -33,7 +42,9 @@ function CategoryList({ title, items }: { title: string; items: NamedAmount[] })
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">No data</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">
+            No data
+          </p>
         ) : (
           <ul className="space-y-2">
             {items.map((i) => (
@@ -45,7 +56,10 @@ function CategoryList({ title, items }: { title: string; items: NamedAmount[] })
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary"
-                    style={{ width: `${(i.amount / max) * 100}%`, backgroundColor: i.color ?? undefined }}
+                    style={{
+                      width: `${(i.amount / max) * 100}%`,
+                      backgroundColor: i.color ?? undefined,
+                    }}
                   />
                 </div>
               </li>
@@ -83,12 +97,26 @@ export default function ReportsPage() {
         actions={
           <div className="flex items-center gap-2" data-no-print>
             <div className="w-36">
-              <EntitySelect value={period} onChange={(v) => setPeriod(v as ReportPeriod)} options={periodOptions} />
+              <EntitySelect
+                value={period}
+                onChange={(v) => setPeriod(v as ReportPeriod)}
+                options={periodOptions}
+              />
             </div>
-            <Button variant="outline" size="icon" onClick={handleExport} aria-label="Export CSV">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleExport}
+              aria-label="Export CSV"
+            >
               <Download className="size-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => window.print()} aria-label="Print">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => window.print()}
+              aria-label="Print"
+            >
               <Printer className="size-4" />
             </Button>
           </div>
@@ -96,12 +124,18 @@ export default function ReportsPage() {
       />
 
       {report.isError && !data ? (
-        <ErrorState message={(report.error as Error)?.message} onRetry={() => void report.refetch()} />
+        <ErrorState
+          message={(report.error as Error)?.message}
+          onRetry={() => void report.refetch()}
+        />
       ) : !data ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl border bg-muted/40" />
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-xl border bg-muted/40"
+              />
             ))}
           </div>
           <div className="h-64 animate-pulse rounded-xl border bg-muted/40" />
@@ -109,46 +143,81 @@ export default function ReportsPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-            <StatCard label="Income" value={<Money paise={data.totals.income} />} />
-            <StatCard label="Expenses" value={<Money paise={data.totals.expense} />} />
-            <StatCard label="GST Paid" value={<Money paise={data.totals.gst} />} />
-            <StatCard label="Net Profit" value={<Money paise={data.totals.net} colorBySign />} emphasize />
-            <StatCard label="Savings Rate" value={<Percent value={data.totals.savingsRate} />} />
+            <StatCard
+              label="Income"
+              value={<Money paise={data.totals.income} />}
+            />
+            <StatCard
+              label="Expenses"
+              value={<Money paise={data.totals.expense} />}
+            />
+            <StatCard
+              label="GST Paid"
+              value={<Money paise={data.totals.gst} />}
+            />
+            <StatCard
+              label="Net Profit"
+              value={<Money paise={data.totals.net} colorBySign />}
+              emphasize
+            />
+            <StatCard
+              label="Savings Rate"
+              value={<Percent value={data.totals.savingsRate} />}
+            />
           </div>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">By {period.replace("ly", "")} period</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                By {period.replace("ly", "")} period
+              </CardTitle>
             </CardHeader>
             <CardContent className="px-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-xs text-muted-foreground">
-                      <th className="px-4 py-2 text-left font-medium">Period</th>
-                      <th className="px-4 py-2 text-right font-medium">Income</th>
-                      <th className="px-4 py-2 text-right font-medium">Expense</th>
+                      <th className="px-4 py-2 text-left font-medium">
+                        Period
+                      </th>
+                      <th className="px-4 py-2 text-right font-medium">
+                        Income
+                      </th>
+                      <th className="px-4 py-2 text-right font-medium">
+                        Expense
+                      </th>
                       <th className="px-4 py-2 text-right font-medium">GST</th>
                       <th className="px-4 py-2 text-right font-medium">Net</th>
-                      <th className="px-4 py-2 text-right font-medium">Savings</th>
+                      <th className="px-4 py-2 text-right font-medium">
+                        Savings
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.rows.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                        <td
+                          colSpan={6}
+                          className="px-4 py-6 text-center text-muted-foreground"
+                        >
                           No data for this period.
                         </td>
                       </tr>
                     ) : (
                       data.rows.map((r) => (
-                        <tr key={r.key} className="border-b last:border-b-0 hover:bg-accent/30">
+                        <tr
+                          key={r.key}
+                          className="border-b last:border-b-0 hover:bg-accent/30"
+                        >
                           <td className="px-4 py-2 font-medium">{r.label}</td>
                           <td className="px-4 py-2 text-right">
                             <Money paise={r.income} className="text-positive" />
                           </td>
                           <td className="px-4 py-2 text-right">
-                            <Money paise={r.expense} className="text-negative" />
+                            <Money
+                              paise={r.expense}
+                              className="text-negative"
+                            />
                           </td>
                           <td className="px-4 py-2 text-right text-muted-foreground">
                             <Money paise={r.gst} />
@@ -156,7 +225,9 @@ export default function ReportsPage() {
                           <td className="px-4 py-2 text-right">
                             <Money paise={r.net} colorBySign />
                           </td>
-                          <td className="px-4 py-2 text-right tabular-nums">{r.savingsRate.toFixed(1)}%</td>
+                          <td className="px-4 py-2 text-right tabular-nums">
+                            {r.savingsRate.toFixed(1)}%
+                          </td>
                         </tr>
                       ))
                     )}
@@ -167,27 +238,47 @@ export default function ReportsPage() {
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <CategoryList title="Top Expense Categories" items={data.topExpenseCategories} />
-            <CategoryList title="Top Income Sources" items={data.topIncomeCategories} />
+            <CategoryList
+              title="Top Expense Categories"
+              items={data.topExpenseCategories}
+            />
+            <CategoryList
+              title="Top Income Sources"
+              items={data.topIncomeCategories}
+            />
           </div>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Project Performance</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Project Performance
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {data.projectPerformance.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">No data</p>
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No data
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {data.projectPerformance.map((p) => (
-                    <li key={p.name} className="flex items-center gap-3 rounded-lg border p-2.5">
+                    <li
+                      key={p.name}
+                      className="flex items-center gap-3 rounded-lg border p-2.5"
+                    >
                       <ProjectDot color={p.color} />
-                      <span className="flex-1 truncate text-sm font-medium">{p.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        <Money paise={p.income} compact /> in · <Money paise={p.expense} compact /> out
+                      <span className="flex-1 truncate text-sm font-medium">
+                        {p.name}
                       </span>
-                      <Money paise={p.net} className="w-24 text-right text-sm font-medium" colorBySign />
+                      <span className="text-xs text-muted-foreground">
+                        <Money paise={p.income} compact /> in ·{" "}
+                        <Money paise={p.expense} compact /> out
+                      </span>
+                      <Money
+                        paise={p.net}
+                        className="w-24 text-right text-sm font-medium"
+                        colorBySign
+                      />
                     </li>
                   ))}
                 </ul>

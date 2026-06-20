@@ -20,7 +20,11 @@ function dueLabel(p: UpcomingPaymentDTO): string {
   return `in ${p.daysUntil}d`;
 }
 
-export function UpcomingPayments({ payments }: { payments: UpcomingPaymentDTO[] }) {
+export function UpcomingPayments({
+  payments,
+}: {
+  payments: UpcomingPaymentDTO[];
+}) {
   return (
     <Card>
       <CardHeader>
@@ -46,7 +50,9 @@ export function UpcomingPayments({ payments }: { payments: UpcomingPaymentDTO[] 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {[p.projectName, p.categoryName].filter(Boolean).join(" · ") || "—"}
+                    {[p.projectName, p.categoryName]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

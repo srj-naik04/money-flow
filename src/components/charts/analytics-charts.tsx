@@ -25,7 +25,20 @@ import { useChartColors } from "@/hooks/use-chart-colors";
 import type { AnalyticsBundle } from "@/server/services/analytics.service";
 import type { SubscriptionDTO } from "@/types/domain";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 const monthLabel = (m: unknown) => {
   const s = String(m ?? "");
   const parts = s.split("-");
@@ -57,8 +70,17 @@ export function AnalyticsCharts({
 }) {
   const c = useChartColors();
   const { monthly, expenseByCategory, projectProfit, investmentGrowth } = data;
-  const axis = { stroke: c["--muted-foreground"], fontSize: 11, tickLine: false, axisLine: false };
-  const grid = { stroke: c["--border"], strokeDasharray: "3 3", vertical: false };
+  const axis = {
+    stroke: c["--muted-foreground"],
+    fontSize: 11,
+    tickLine: false,
+    axisLine: false,
+  };
+  const grid = {
+    stroke: c["--border"],
+    strokeDasharray: "3 3",
+    vertical: false,
+  };
   const cursor = { fill: c["--accent"] };
 
   const subMap = new Map<string, number>();
@@ -94,9 +116,23 @@ export function AnalyticsCharts({
             <CartesianGrid {...grid} />
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis tickFormatter={formatINRCompact} width={52} {...axis} />
-            <Tooltip {...tooltipStyle} labelFormatter={monthLabel} cursor={cursor} />
-            <Bar dataKey="income" name="Income" fill={c["--chart-2"]} radius={[3, 3, 0, 0]} />
-            <Bar dataKey="expense" name="Expense" fill={c["--chart-4"]} radius={[3, 3, 0, 0]} />
+            <Tooltip
+              {...tooltipStyle}
+              labelFormatter={monthLabel}
+              cursor={cursor}
+            />
+            <Bar
+              dataKey="income"
+              name="Income"
+              fill={c["--chart-2"]}
+              radius={[3, 3, 0, 0]}
+            />
+            <Bar
+              dataKey="expense"
+              name="Expense"
+              fill={c["--chart-4"]}
+              radius={[3, 3, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -108,7 +144,14 @@ export function AnalyticsCharts({
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis tickFormatter={formatINRCompact} width={52} {...axis} />
             <Tooltip {...tooltipStyle} labelFormatter={monthLabel} />
-            <Line type="monotone" dataKey="net" name="Net profit" stroke={c["--chart-1"]} strokeWidth={2.5} dot={false} />
+            <Line
+              type="monotone"
+              dataKey="net"
+              name="Net profit"
+              stroke={c["--chart-1"]}
+              strokeWidth={2.5}
+              dot={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -118,7 +161,11 @@ export function AnalyticsCharts({
           <AreaChart data={monthly}>
             <defs>
               <linearGradient id="cf" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={c["--chart-5"]} stopOpacity={0.4} />
+                <stop
+                  offset="5%"
+                  stopColor={c["--chart-5"]}
+                  stopOpacity={0.4}
+                />
                 <stop offset="95%" stopColor={c["--chart-5"]} stopOpacity={0} />
               </linearGradient>
             </defs>
@@ -126,7 +173,14 @@ export function AnalyticsCharts({
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis tickFormatter={formatINRCompact} width={52} {...axis} />
             <Tooltip {...tooltipStyle} labelFormatter={monthLabel} />
-            <Area type="monotone" dataKey="cumulative" name="Cashflow" stroke={c["--chart-5"]} strokeWidth={2} fill="url(#cf)" />
+            <Area
+              type="monotone"
+              dataKey="cumulative"
+              name="Cashflow"
+              stroke={c["--chart-5"]}
+              strokeWidth={2}
+              fill="url(#cf)"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -136,7 +190,11 @@ export function AnalyticsCharts({
           <AreaChart data={monthly}>
             <defs>
               <linearGradient id="gst" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={c["--chart-3"]} stopOpacity={0.4} />
+                <stop
+                  offset="5%"
+                  stopColor={c["--chart-3"]}
+                  stopOpacity={0.4}
+                />
                 <stop offset="95%" stopColor={c["--chart-3"]} stopOpacity={0} />
               </linearGradient>
             </defs>
@@ -144,7 +202,14 @@ export function AnalyticsCharts({
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis tickFormatter={formatINRCompact} width={52} {...axis} />
             <Tooltip {...tooltipStyle} labelFormatter={monthLabel} />
-            <Area type="monotone" dataKey="gst" name="GST" stroke={c["--chart-3"]} strokeWidth={2} fill="url(#gst)" />
+            <Area
+              type="monotone"
+              dataKey="gst"
+              name="GST"
+              stroke={c["--chart-3"]}
+              strokeWidth={2}
+              fill="url(#gst)"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -152,9 +217,19 @@ export function AnalyticsCharts({
       <ChartCard title="Expense Breakdown">
         <ResponsiveContainer width="100%" height={H}>
           <PieChart>
-            <Pie data={expenseByCategory} dataKey="amount" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+            <Pie
+              data={expenseByCategory}
+              dataKey="amount"
+              nameKey="name"
+              innerRadius={55}
+              outerRadius={90}
+              paddingAngle={2}
+            >
               {expenseByCategory.map((s, i) => (
-                <Cell key={s.name} fill={s.color ?? PROJECT_COLORS[i % PROJECT_COLORS.length]} />
+                <Cell
+                  key={s.name}
+                  fill={s.color ?? PROJECT_COLORS[i % PROJECT_COLORS.length]}
+                />
               ))}
             </Pie>
             <Tooltip {...tooltipStyle} />
@@ -164,13 +239,20 @@ export function AnalyticsCharts({
 
       <ChartCard title="Top Categories">
         <ResponsiveContainer width="100%" height={H}>
-          <BarChart data={expenseByCategory.slice(0, 7)} layout="vertical" margin={{ left: 8 }}>
+          <BarChart
+            data={expenseByCategory.slice(0, 7)}
+            layout="vertical"
+            margin={{ left: 8 }}
+          >
             <XAxis type="number" tickFormatter={formatINRCompact} {...axis} />
             <YAxis type="category" dataKey="name" width={90} {...axis} />
             <Tooltip {...tooltipStyle} cursor={cursor} />
             <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
               {expenseByCategory.slice(0, 7).map((s, i) => (
-                <Cell key={s.name} fill={s.color ?? PROJECT_COLORS[i % PROJECT_COLORS.length]} />
+                <Cell
+                  key={s.name}
+                  fill={s.color ?? PROJECT_COLORS[i % PROJECT_COLORS.length]}
+                />
               ))}
             </Bar>
           </BarChart>
@@ -200,7 +282,14 @@ export function AnalyticsCharts({
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis tickFormatter={formatINRCompact} width={52} {...axis} />
             <Tooltip {...tooltipStyle} labelFormatter={monthLabel} />
-            <Line type="monotone" dataKey="expense" name="Expense" stroke={c["--chart-4"]} strokeWidth={2.5} dot={false} />
+            <Line
+              type="monotone"
+              dataKey="expense"
+              name="Expense"
+              stroke={c["--chart-4"]}
+              strokeWidth={2.5}
+              dot={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -210,7 +299,11 @@ export function AnalyticsCharts({
           <AreaChart data={investmentGrowth}>
             <defs>
               <linearGradient id="ig" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={c["--chart-7"]} stopOpacity={0.4} />
+                <stop
+                  offset="5%"
+                  stopColor={c["--chart-7"]}
+                  stopOpacity={0.4}
+                />
                 <stop offset="95%" stopColor={c["--chart-7"]} stopOpacity={0} />
               </linearGradient>
             </defs>
@@ -218,7 +311,14 @@ export function AnalyticsCharts({
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis tickFormatter={formatINRCompact} width={52} {...axis} />
             <Tooltip {...tooltipStyle} labelFormatter={monthLabel} />
-            <Area type="monotone" dataKey="value" name="Portfolio" stroke={c["--chart-7"]} strokeWidth={2} fill="url(#ig)" />
+            <Area
+              type="monotone"
+              dataKey="value"
+              name="Portfolio"
+              stroke={c["--chart-7"]}
+              strokeWidth={2}
+              fill="url(#ig)"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -231,9 +331,19 @@ export function AnalyticsCharts({
         ) : (
           <ResponsiveContainer width="100%" height={H}>
             <PieChart>
-              <Pie data={subsByCategory} dataKey="amount" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+              <Pie
+                data={subsByCategory}
+                dataKey="amount"
+                nameKey="name"
+                innerRadius={55}
+                outerRadius={90}
+                paddingAngle={2}
+              >
                 {subsByCategory.map((s, i) => (
-                  <Cell key={s.name} fill={PROJECT_COLORS[i % PROJECT_COLORS.length]} />
+                  <Cell
+                    key={s.name}
+                    fill={PROJECT_COLORS[i % PROJECT_COLORS.length]}
+                  />
                 ))}
               </Pie>
               <Tooltip {...tooltipStyle} />

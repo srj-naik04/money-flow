@@ -22,6 +22,20 @@
       "when": 1781941957831,
       "tag": "0002_tiresome_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781962335310,
+      "tag": "0003_sloppy_maggott",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781964540764,
+      "tag": "0004_regular_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,9 @@ export function payoffPct(
 }
 
 /** Deterministic idempotency key for the transaction a recurring item auto-posts. */
-export function recurringClientId(itemId: string, postingDateISO: string): string {
+export function recurringClientId(
+  itemId: string,
+  postingDateISO: string,
+): string {
   return `recurring:${itemId}:${postingDateISO}`;
 }

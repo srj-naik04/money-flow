@@ -10,7 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
 
 import { useCreateTransaction } from "@/hooks/use-transactions";
@@ -21,7 +24,9 @@ import { todayISO } from "@/lib/date";
 
 const schema = z
   .object({
-    amount: z.string().refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
+    amount: z
+      .string()
+      .refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
     occurredAt: z.string().min(1, "Pick a date"),
     accountId: z.string().min(1, "Choose a source account"),
     transferAccountId: z.string().min(1, "Choose a destination account"),
@@ -45,10 +50,19 @@ export function TransferForm({ onDone }: { onDone: () => void }) {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { amount: "", occurredAt: todayISO(), accountId: "", transferAccountId: "", notes: "" },
+    defaultValues: {
+      amount: "",
+      occurredAt: todayISO(),
+      accountId: "",
+      transferAccountId: "",
+      notes: "",
+    },
   });
 
-  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({ value: a.id, label: a.name }));
+  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -64,14 +78,21 @@ export function TransferForm({ onDone }: { onDone: () => void }) {
       toast.success("Transfer recorded");
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't record transfer");
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't record transfer",
+      );
     }
   });
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pt-2">
       <Field label="Amount" htmlFor="amount" error={errors.amount?.message}>
-        <AmountInput id="amount" autoFocus aria-invalid={!!errors.amount} {...register("amount")} />
+        <AmountInput
+          id="amount"
+          autoFocus
+          aria-invalid={!!errors.amount}
+          {...register("amount")}
+        />
       </Field>
 
       <Field label="Date" htmlFor="date" error={errors.occurredAt?.message}>
@@ -112,11 +133,21 @@ export function TransferForm({ onDone }: { onDone: () => void }) {
       </div>
 
       <Field label="Notes" htmlFor="notes">
-        <Textarea id="notes" rows={2} placeholder="Optional…" {...register("notes")} />
+        <Textarea
+          id="notes"
+          rows={2}
+          placeholder="Optional…"
+          {...register("notes")}
+        />
       </Field>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onDone} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDone}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>

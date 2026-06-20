@@ -1,10 +1,35 @@
-import { and, eq, gte, isNull, lt, notInArray, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/db";
-import { transactions, subscriptions, investments, recurringItems } from "@/db/schema";
+import {
+  transactions,
+  subscriptions,
+  investments,
+  recurringItems,
+  deposits,
+} from "@/db/schema";
 import { archivedProjectIds } from "@/server/repositories/projects.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { largePaymentThreshold } from "@/lib/finance";
-import { renewalsInRange, fromISODate, toISODate, addMonths, addDays, endOfMonth, todayISO } from "@/lib/date";
+import {
+  renewalsInRange,
+  fromISODate,
+  toISODate,
+  addMonths,
+  addDays,
+  endOfMonth,
+  todayISO,
+} from "@/lib/date";
 import { lte } from "drizzle-orm";
 
 export type CalendarDay = {
@@ -16,7 +41,14 @@ export type CalendarDay = {
 };
 export type CalendarEvent = {
   date: string;
-  kind: "renewal" | "investment" | "salary" | "emi" | "sip";
+  kind:
+    | "renewal"
+    | "investment"
+    | "salary"
+    | "emi"
+    | "sip"
+    | "deposit"
+    | "maturity";
   name: string;
   amount?: number;
 };
@@ -27,21 +59,33 @@ export type CalendarBundle = {
   largeThreshold: number;
 };
 
-async function txConds(projectId: string, includeArchived: boolean): Promise<SQL[]> {
-  const conds: SQL[] = [];
+async function txConds(
+  projectId: string,
+  includeArchived: boolean,
+): Promise<SQL[]> {
+  // Tenant scope first — every transactions query (day totals + large-payment
+  // threshold) funnels through here.
+  const conds: SQL[] = [eq(transactions.userId, getCurrentUserId())];
   if (projectId && projectId !== "all") {
     conds.push(eq(transactions.projectId, projectId));
   } else if (!includeArchived) {
     const archived = await archivedProjectIds();
     if (archived.length) {
-      const c = or(isNull(transactions.projectId), notInArray(transactions.projectId, archived));
+      const c = or(
+        isNull(transactions.projectId),
+        notInArray(transactions.projectId, archived),
+      );
       if (c) conds.push(c);
     }
   }
   return conds;
 }
 
-export async function getCalendar(month: string, projectId = "all"): Promise<CalendarBundle> {
+export async function getCalendar(
+  month: string,
+  projectId = "all",
+): Promise<CalendarBundle> {
+  const userId = getCurrentUserId();
   const settings = await getSettingsRow();
   const monthStart = `${month}-01`;
   const startDate = fromISODate(monthStart);
@@ -59,7 +103,10 @@ export async function getCalendar(month: string, projectId = "all"): Promise<Cal
       and(
         ...conds,
         eq(transactions.type, "expense"),
-        gte(transactions.occurredAt, toISODate(addDays(fromISODate(today), -90))),
+        gte(
+          transactions.occurredAt,
+          toISODate(addDays(fromISODate(today), -90)),
+        ),
         lte(transactions.occurredAt, today),
       ),
     );
@@ -71,13 +118,28 @@ export async function getCalendar(month: string, projectId = "all"): Promise<Cal
   const dayRows = await db
     .select({
       date: transactions.occurredAt,
-      income: sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      maxExpense: sql<number>`coalesce(max(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
+      income:
+        sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      expense:
+        sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      maxExpense:
+        sql<number>`coalesce(max(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
       count: sql<number>`count(*)`.mapWith(Number),
     })
     .from(transactions)
-    .where(and(...conds, gte(transactions.occurredAt, monthStart), lt(transactions.occurredAt, monthEndExclusive)))
+    .where(
+      and(
+        ...conds,
+        gte(transactions.occurredAt, monthStart),
+        lt(transactions.occurredAt, monthEndExclusive),
+      ),
+    )
     .groupBy(transactions.occurredAt);
 
   const days: CalendarDay[] = dayRows.map((d) => ({
@@ -89,7 +151,10 @@ export async function getCalendar(month: string, projectId = "all"): Promise<Cal
   }));
 
   // Subscription renewals projected into the visible month.
-  const subCond = projectId && projectId !== "all" ? eq(subscriptions.projectId, projectId) : undefined;
+  const subCond =
+    projectId && projectId !== "all"
+      ? eq(subscriptions.projectId, projectId)
+      : undefined;
   const subs = await db
     .select({
       name: subscriptions.name,
@@ -99,32 +164,44 @@ export async function getCalendar(month: string, projectId = "all"): Promise<Cal
       status: subscriptions.status,
     })
     .from(subscriptions)
-    .where(subCond);
+    .where(and(eq(subscriptions.userId, userId), subCond));
 
   const events: CalendarEvent[] = [];
   for (const s of subs) {
     if (s.status !== "active") continue;
-    for (const date of renewalsInRange(s.anchorDate, s.billingCycle, monthStart, monthEndInclusive)) {
+    for (const date of renewalsInRange(
+      s.anchorDate,
+      s.billingCycle,
+      monthStart,
+      monthEndInclusive,
+    )) {
       events.push({ date, kind: "renewal", name: s.name, amount: s.amount });
     }
   }
 
-  const invCond = projectId && projectId !== "all" ? eq(investments.projectId, projectId) : undefined;
+  const invCond =
+    projectId && projectId !== "all"
+      ? eq(investments.projectId, projectId)
+      : undefined;
   const invs = await db
     .select({ name: investments.name, purchaseDate: investments.purchaseDate })
     .from(investments)
     .where(
       and(
+        eq(investments.userId, userId),
         invCond,
         gte(investments.purchaseDate, monthStart),
         lt(investments.purchaseDate, monthEndExclusive),
       ),
     );
-  for (const i of invs) events.push({ date: i.purchaseDate, kind: "investment", name: i.name });
+  for (const i of invs)
+    events.push({ date: i.purchaseDate, kind: "investment", name: i.name });
 
   // Planner recurring items (salary / EMI / SIP) projected into the visible month.
   const recCond =
-    projectId && projectId !== "all" ? eq(recurringItems.projectId, projectId) : undefined;
+    projectId && projectId !== "all"
+      ? eq(recurringItems.projectId, projectId)
+      : undefined;
   const recs = await db
     .select({
       name: recurringItems.name,
@@ -137,15 +214,70 @@ export async function getCalendar(month: string, projectId = "all"): Promise<Cal
       installmentsPaid: recurringItems.installmentsPaid,
     })
     .from(recurringItems)
-    .where(recCond);
+    .where(and(eq(recurringItems.userId, userId), recCond));
   for (const r of recs) {
     if (r.status !== "active") continue;
-    let occurrences = renewalsInRange(r.anchorDate, r.billingCycle, monthStart, monthEndInclusive);
+    let occurrences = renewalsInRange(
+      r.anchorDate,
+      r.billingCycle,
+      monthStart,
+      monthEndInclusive,
+    );
     if (r.template === "emi" && r.totalInstallments != null) {
-      occurrences = occurrences.slice(0, Math.max(0, r.totalInstallments - r.installmentsPaid));
+      occurrences = occurrences.slice(
+        0,
+        Math.max(0, r.totalInstallments - r.installmentsPaid),
+      );
     }
     for (const date of occurrences) {
       events.push({ date, kind: r.template, name: r.name, amount: r.amount });
+    }
+  }
+
+  // Deposits: maturity dates + RD installment-due markers in the visible month.
+  const depCond =
+    projectId && projectId !== "all"
+      ? eq(deposits.projectId, projectId)
+      : undefined;
+  const deps = await db
+    .select({
+      name: deposits.name,
+      type: deposits.type,
+      status: deposits.status,
+      principalAmount: deposits.principalAmount,
+      maturityDate: deposits.maturityDate,
+      maturityAmount: deposits.maturityAmount,
+      anchorDate: deposits.anchorDate,
+      tenureMonths: deposits.tenureMonths,
+      installmentsPaid: deposits.installmentsPaid,
+    })
+    .from(deposits)
+    .where(and(eq(deposits.userId, userId), depCond));
+  for (const d of deps) {
+    if (d.status !== "active") continue;
+    if (d.maturityDate >= monthStart && d.maturityDate <= monthEndInclusive) {
+      events.push({
+        date: d.maturityDate,
+        kind: "maturity",
+        name: `${d.name} matures`,
+        amount: d.maturityAmount,
+      });
+    }
+    if (d.type === "rd" && d.anchorDate) {
+      const occ = renewalsInRange(
+        d.anchorDate,
+        "monthly",
+        monthStart,
+        monthEndInclusive,
+      ).slice(0, Math.max(0, d.tenureMonths - d.installmentsPaid));
+      for (const date of occ) {
+        events.push({
+          date,
+          kind: "deposit",
+          name: d.name,
+          amount: d.principalAmount,
+        });
+      }
     }
   }
 

@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { zHexColor, zOptionalText, zRequiredText, zCategoryKind } from "./shared";
+import {
+  zHexColor,
+  zOptionalText,
+  zRequiredText,
+  zCategoryKind,
+} from "./shared";
 
 export const categoryCreateSchema = z.object({
   name: zRequiredText("Category name", 60),

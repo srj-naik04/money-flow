@@ -12,7 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
 import { Money } from "@/components/common/money";
 
@@ -27,7 +30,9 @@ import { todayISO } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
-  amount: z.string().refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
+  amount: z
+    .string()
+    .refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
   occurredAt: z.string().min(1, "Pick a date"),
   projectId: z.string().optional(),
   categoryId: z.string().optional(),
@@ -149,7 +154,11 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form onSubmit={onSubmit} onKeyDown={handleKeyDown} className="space-y-4 pt-2">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={handleKeyDown}
+      className="space-y-4 pt-2"
+    >
       <Field label="Amount" htmlFor="amount" error={errors.amount?.message}>
         <AmountInput
           id="amount"
@@ -186,7 +195,10 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
                   )}
                 />
               </Field>
-              <Field label="Amount includes GST" hint={gstIncluded ? "Splitting from total" : "Adding on top"}>
+              <Field
+                label="Amount includes GST"
+                hint={gstIncluded ? "Splitting from total" : "Adding on top"}
+              >
                 <div className="flex h-10 items-center">
                   <Switch
                     checked={gstIncluded}
@@ -203,7 +215,10 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
               </div>
               <div>
                 <p className="text-muted-foreground">GST</p>
-                <Money paise={split.gst} className="font-medium text-warning-foreground" />
+                <Money
+                  paise={split.gst}
+                  className="font-medium text-warning-foreground"
+                />
               </div>
               <div>
                 <p className="text-muted-foreground">Total</p>
@@ -266,16 +281,27 @@ export function ExpenseForm({ onDone }: { onDone: () => void }) {
       </div>
 
       <Field label="Vendor" htmlFor="vendor">
-        <Input id="vendor" placeholder="e.g. Anthropic…" spellCheck={false} {...register("vendor")} />
+        <Input
+          id="vendor"
+          placeholder="e.g. Anthropic…"
+          spellCheck={false}
+          {...register("vendor")}
+        />
       </Field>
 
       <Field label="Notes" htmlFor="notes">
-        <Textarea id="notes" rows={2} placeholder="Optional…" {...register("notes")} />
+        <Textarea
+          id="notes"
+          rows={2}
+          placeholder="Optional…"
+          {...register("notes")}
+        />
       </Field>
 
       <div className="flex items-center justify-between gap-2 pt-1">
         <p className="hidden text-xs text-muted-foreground sm:block">
-          <kbd className="rounded border bg-muted px-1">⌘ ⏎</kbd> to save &amp; add another
+          <kbd className="rounded border bg-muted px-1">⌘ ⏎</kbd> to save &amp;
+          add another
         </p>
         <div className="flex flex-1 gap-2 sm:flex-initial">
           <Button

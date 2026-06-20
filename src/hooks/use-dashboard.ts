@@ -13,7 +13,10 @@ export function useDashboardStats(projectIdOverride?: string) {
   return useQuery({
     queryKey: qk.dashboardStats(projectId),
     queryFn: ({ signal }) =>
-      api.get<DashboardStats>(`/api/dashboard/stats?projectId=${projectId}`, signal),
+      api.get<DashboardStats>(
+        `/api/dashboard/stats?projectId=${projectId}`,
+        signal,
+      ),
     placeholderData: keepPreviousData,
   });
 }

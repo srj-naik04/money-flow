@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RecurringPanel } from "@/components/planner/recurring-panel";
 import { GoalsPanel } from "@/components/planner/goals-panel";
+import { DepositsPanel } from "@/components/planner/deposits-panel";
 import { SubscriptionsPanel } from "@/components/subscriptions/subscriptions-panel";
 
 const TABS = [
@@ -12,6 +13,7 @@ const TABS = [
   { value: "subscriptions", label: "Subscriptions" },
   { value: "emi", label: "Loans & EMIs" },
   { value: "sip", label: "SIPs" },
+  { value: "deposits", label: "Deposits" },
   { value: "goals", label: "Goals" },
 ] as const;
 type TabKey = (typeof TABS)[number]["value"];
@@ -57,6 +59,9 @@ export default function PlannerPage() {
         </TabsContent>
         <TabsContent value="sip">
           <RecurringPanel template="sip" />
+        </TabsContent>
+        <TabsContent value="deposits">
+          <DepositsPanel />
         </TabsContent>
         <TabsContent value="goals">
           <GoalsPanel />

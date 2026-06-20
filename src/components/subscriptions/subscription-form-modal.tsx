@@ -7,14 +7,20 @@ import { toast } from "sonner";
 
 import { FormModal } from "@/components/forms/form-modal";
 import { Field } from "@/components/forms/field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-import { useCreateSubscription, useUpdateSubscription } from "@/hooks/use-subscriptions";
+import {
+  useCreateSubscription,
+  useUpdateSubscription,
+} from "@/hooks/use-subscriptions";
 import { useProjects } from "@/hooks/use-projects";
 import { useCategories } from "@/hooks/use-categories";
 import { useActiveProjectId } from "@/hooks/use-active-project";
@@ -66,7 +72,9 @@ export function SubscriptionFormModal({
       amount: subscription ? String(subscription.amount / 100) : "",
       billingCycle: subscription?.billingCycle ?? "monthly",
       anchorDate: subscription?.anchorDate ?? todayISO(),
-      projectId: subscription?.projectId ?? (activeProjectId !== "all" ? activeProjectId : undefined),
+      projectId:
+        subscription?.projectId ??
+        (activeProjectId !== "all" ? activeProjectId : undefined),
       categoryId: subscription?.categoryId ?? undefined,
       gstEnabled: subscription ? subscription.gstRateBps > 0 : false,
       gstRateBps: String(subscription?.gstRateBps || 1800),
@@ -74,12 +82,21 @@ export function SubscriptionFormModal({
     },
   });
 
-  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({ value: p.id, label: p.name }));
+  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
   const categoryOptions: SelectOption[] = (categories ?? [])
     .filter((c) => c.kind === "expense" && !c.isArchived)
     .map((c) => ({ value: c.id, label: c.name }));
-  const cycleOptions: SelectOption[] = BILLING_CYCLES.map((c) => ({ value: c.value, label: c.label }));
-  const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({ value: String(r), label: formatGstRate(r) }));
+  const cycleOptions: SelectOption[] = BILLING_CYCLES.map((c) => ({
+    value: c.value,
+    label: c.label,
+  }));
+  const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({
+    value: String(r),
+    label: formatGstRate(r),
+  }));
   const gstEnabled = watch("gstEnabled");
 
   const onSubmit = handleSubmit(async (values) => {
@@ -106,7 +123,9 @@ export function SubscriptionFormModal({
       }
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save subscription");
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't save subscription",
+      );
     }
   });
 
@@ -119,24 +138,45 @@ export function SubscriptionFormModal({
     >
       <form onSubmit={onSubmit} className="space-y-4 pt-2">
         <Field label="Name" htmlFor="s-name" error={errors.name?.message}>
-          <Input id="s-name" autoFocus placeholder="e.g. Claude Pro" {...register("name")} />
+          <Input
+            id="s-name"
+            autoFocus
+            placeholder="e.g. Claude Pro"
+            {...register("name")}
+          />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Amount / cycle" htmlFor="s-amt" error={errors.amount?.message}>
-            <AmountInput id="s-amt" aria-invalid={!!errors.amount} {...register("amount")} />
+          <Field
+            label="Amount / cycle"
+            htmlFor="s-amt"
+            error={errors.amount?.message}
+          >
+            <AmountInput
+              id="s-amt"
+              aria-invalid={!!errors.amount}
+              {...register("amount")}
+            />
           </Field>
           <Field label="Billing cycle">
             <Controller
               control={control}
               name="billingCycle"
               render={({ field }) => (
-                <EntitySelect value={field.value} onChange={field.onChange} options={cycleOptions} />
+                <EntitySelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={cycleOptions}
+                />
               )}
             />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Next due date" htmlFor="s-anchor" error={errors.anchorDate?.message}>
+          <Field
+            label="Next due date"
+            htmlFor="s-anchor"
+            error={errors.anchorDate?.message}
+          >
             <DateField id="s-anchor" {...register("anchorDate")} />
           </Field>
           <Field label="Project">
@@ -144,7 +184,12 @@ export function SubscriptionFormModal({
               control={control}
               name="projectId"
               render={({ field }) => (
-                <EntitySelect value={field.value} onChange={field.onChange} options={projectOptions} placeholder="Unassigned" />
+                <EntitySelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={projectOptions}
+                  placeholder="Unassigned"
+                />
               )}
             />
           </Field>
@@ -155,7 +200,12 @@ export function SubscriptionFormModal({
               control={control}
               name="categoryId"
               render={({ field }) => (
-                <EntitySelect value={field.value} onChange={field.onChange} options={categoryOptions} placeholder="Select…" />
+                <EntitySelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={categoryOptions}
+                  placeholder="Select…"
+                />
               )}
             />
           </Field>
@@ -164,25 +214,49 @@ export function SubscriptionFormModal({
               control={control}
               name="gstRateBps"
               render={({ field }) => (
-                <EntitySelect value={field.value} onChange={field.onChange} options={gstRateOptions} disabled={!gstEnabled} />
+                <EntitySelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={gstRateOptions}
+                  disabled={!gstEnabled}
+                />
               )}
             />
           </Field>
         </div>
         <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
-          <label htmlFor="s-gst" className="text-sm font-medium">Includes GST</label>
-          <Switch id="s-gst" checked={gstEnabled} onCheckedChange={(v) => setValue("gstEnabled", v)} />
+          <label htmlFor="s-gst" className="text-sm font-medium">
+            Includes GST
+          </label>
+          <Switch
+            id="s-gst"
+            checked={gstEnabled}
+            onCheckedChange={(v) => setValue("gstEnabled", v)}
+          />
         </div>
         <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
-          <label htmlFor="s-auto" className="text-sm font-medium">Auto-renew</label>
+          <label htmlFor="s-auto" className="text-sm font-medium">
+            Auto-renew
+          </label>
           <Controller
             control={control}
             name="autoRenew"
-            render={({ field }) => <Switch id="s-auto" checked={field.value} onCheckedChange={field.onChange} />}
+            render={({ field }) => (
+              <Switch
+                id="s-auto"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            )}
           />
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>

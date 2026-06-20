@@ -33,6 +33,8 @@ export const recurringItems = pgTable(
   "recurring_items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner (Neon Auth user id). Nullable until backfill, then set NOT NULL. */
+    userId: text("user_id"),
     flow: recurringFlowEnum("flow").notNull(),
     template: recurringTemplateEnum("template").notNull(),
     name: text("name").notNull(),
@@ -43,6 +45,9 @@ export const recurringItems = pgTable(
     gstAmount: bigint("gst_amount", { mode: "number" }).notNull().default(0),
     gstRateBps: integer("gst_rate_bps").notNull().default(0),
     gstIncluded: boolean("gst_included").notNull().default(false),
+    /** Salary only: monthly GROSS / CTC in paise (amount = net take-home that
+     * gets posted to the ledger). deductions = grossSalary - amount. */
+    grossSalary: bigint("gross_salary", { mode: "number" }),
     // Schedule (mirrors subscriptions)
     billingCycle: billingCycleEnum("billing_cycle").notNull(),
     /** Next due date 'YYYY-MM-DD'; advances by one cycle when marked done. */
@@ -54,9 +59,15 @@ export const recurringItems = pgTable(
     /** When true, marking done posts the real transaction / grows the investment. */
     autoPost: boolean("auto_post").notNull().default(true),
     // Posting targets
-    accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
-    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
-    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    accountId: uuid("account_id").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    projectId: uuid("project_id").references(() => projects.id, {
+      onDelete: "set null",
+    }),
+    categoryId: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
     // EMI-only (nullable)
     principalAmount: bigint("principal_amount", { mode: "number" }),
     totalInstallments: integer("total_installments"),
@@ -66,15 +77,23 @@ export const recurringItems = pgTable(
     investmentId: uuid("investment_id").references(() => investments.id, {
       onDelete: "set null",
     }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
+    index("ri_user_idx").on(t.userId),
     index("ri_status_idx").on(t.status),
     index("ri_template_idx").on(t.template),
     index("ri_project_idx").on(t.projectId),
     index("ri_anchor_idx").on(t.anchorDate),
-    check("ri_gst_reconciles", sql`${t.baseAmount} + ${t.gstAmount} = ${t.amount}`),
+    check(
+      "ri_gst_reconciles",
+      sql`${t.baseAmount} + ${t.gstAmount} = ${t.amount}`,
+    ),
     check("ri_amount_nonneg", sql`${t.amount} >= 0`),
     check(
       "ri_installments_valid",
@@ -86,7 +105,13 @@ export const recurringItems = pgTable(
         OR (${t.template} = 'emi' AND ${t.flow} = 'expense')
         OR (${t.template} = 'sip' AND ${t.flow} = 'investment')`,
     ),
-    check("ri_emi_needs_count", sql`${t.template} <> 'emi' OR ${t.totalInstallments} IS NOT NULL`),
-    check("ri_sip_needs_investment", sql`${t.template} <> 'sip' OR ${t.investmentId} IS NOT NULL`),
+    check(
+      "ri_emi_needs_count",
+      sql`${t.template} <> 'emi' OR ${t.totalInstallments} IS NOT NULL`,
+    ),
+    check(
+      "ri_sip_needs_investment",
+      sql`${t.template} <> 'sip' OR ${t.investmentId} IS NOT NULL`,
+    ),
   ],
 );

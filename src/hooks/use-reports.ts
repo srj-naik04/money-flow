@@ -12,7 +12,10 @@ export function useReport(period: ReportPeriod = "monthly") {
   return useQuery({
     queryKey: qk.reports(period, projectId, "", ""),
     queryFn: ({ signal }) =>
-      api.get<ReportBundle>(`/api/reports?projectId=${projectId}&period=${period}`, signal),
+      api.get<ReportBundle>(
+        `/api/reports?projectId=${projectId}&period=${period}`,
+        signal,
+      ),
     placeholderData: keepPreviousData,
   });
 }

@@ -1,10 +1,15 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, transactions } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { toPaise } from "@/lib/money";
-import type { AccountDTO } from "@/types/domain";
-import type { AccountCreateInput, AccountUpdateInput } from "@/lib/schemas/account";
+import { todayISO, monthRange } from "@/lib/date";
+import type { AccountDTO, AccountSpendDTO } from "@/types/domain";
+import type {
+  AccountCreateInput,
+  AccountUpdateInput,
+} from "@/lib/schemas/account";
 
 type Row = typeof accounts.$inferSelect;
 
@@ -22,35 +27,48 @@ function toDTO(r: Row, balance: number): AccountDTO {
 }
 
 export async function listAccounts(): Promise<AccountDTO[]> {
+  const userId = getCurrentUserId();
   const rows = await db
     .select()
     .from(accounts)
+    .where(eq(accounts.userId, userId))
     .orderBy(asc(accounts.sortOrder), asc(accounts.name));
 
   const signed = await db
     .select({
       accountId: transactions.accountId,
-      sum: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(Number),
+      sum: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(
+        Number,
+      ),
     })
     .from(transactions)
+    .where(eq(transactions.userId, userId))
     .groupBy(transactions.accountId);
 
   const transferOut = await db
     .select({
       accountId: transactions.accountId,
-      sum: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(Number),
+      sum: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(
+        Number,
+      ),
     })
     .from(transactions)
-    .where(eq(transactions.type, "transfer"))
+    .where(
+      and(eq(transactions.userId, userId), eq(transactions.type, "transfer")),
+    )
     .groupBy(transactions.accountId);
 
   const transferIn = await db
     .select({
       accountId: transactions.transferAccountId,
-      sum: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(Number),
+      sum: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(
+        Number,
+      ),
     })
     .from(transactions)
-    .where(eq(transactions.type, "transfer"))
+    .where(
+      and(eq(transactions.userId, userId), eq(transactions.type, "transfer")),
+    )
     .groupBy(transactions.transferAccountId);
 
   const signedMap = new Map(signed.map((s) => [s.accountId, s.sum]));
@@ -68,13 +86,47 @@ export async function listAccounts(): Promise<AccountDTO[]> {
   );
 }
 
-export async function createAccount(input: AccountCreateInput): Promise<AccountDTO> {
+/** This month's expense total grouped by the account it was paid from, so the
+ * UI can show "₹X on credit card, ₹Y from the salary account". Tenant-scoped. */
+export async function spendingBySourceThisMonth(): Promise<AccountSpendDTO[]> {
+  const userId = getCurrentUserId();
+  const { start, end } = monthRange(todayISO());
+  const rows = await db
+    .select({
+      accountId: transactions.accountId,
+      spent: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(
+        Number,
+      ),
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "expense"),
+        gte(transactions.occurredAt, start),
+        lt(transactions.occurredAt, end),
+      ),
+    )
+    .groupBy(transactions.accountId);
+  return rows;
+}
+
+export async function createAccount(
+  input: AccountCreateInput,
+): Promise<AccountDTO> {
+  const userId = getCurrentUserId();
   const [maxRow] = await db
-    .select({ max: sql<number>`coalesce(max(${accounts.sortOrder}), -1)`.mapWith(Number) })
-    .from(accounts);
+    .select({
+      max: sql<number>`coalesce(max(${accounts.sortOrder}), -1)`.mapWith(
+        Number,
+      ),
+    })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
   const [row] = await db
     .insert(accounts)
     .values({
+      userId,
       name: input.name,
       type: input.type,
       openingBalance: toPaise(input.openingBalance),
@@ -85,7 +137,11 @@ export async function createAccount(input: AccountCreateInput): Promise<AccountD
   return toDTO(row, row.openingBalance);
 }
 
-export async function updateAccount(id: string, input: AccountUpdateInput): Promise<AccountDTO> {
+export async function updateAccount(
+  id: string,
+  input: AccountUpdateInput,
+): Promise<AccountDTO> {
+  const userId = getCurrentUserId();
   const [row] = await db
     .update(accounts)
     .set({
@@ -95,18 +151,27 @@ export async function updateAccount(id: string, input: AccountUpdateInput): Prom
         ? { openingBalance: toPaise(input.openingBalance) }
         : {}),
       ...(input.currency !== undefined ? { currency: input.currency } : {}),
-      ...(input.isArchived !== undefined ? { isArchived: input.isArchived } : {}),
+      ...(input.isArchived !== undefined
+        ? { isArchived: input.isArchived }
+        : {}),
       ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
       updatedAt: new Date(),
     })
-    .where(eq(accounts.id, id))
+    .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
     .returning();
   if (!row) throw AppError.notFound("Account not found");
   return toDTO(row, row.openingBalance);
 }
 
 export async function deleteAccount(id: string): Promise<void> {
-  const [existing] = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [existing] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
+    .limit(1);
   if (!existing) throw AppError.notFound("Account not found");
-  await db.delete(accounts).where(eq(accounts.id, id));
+  await db
+    .delete(accounts)
+    .where(and(eq(accounts.id, id), eq(accounts.userId, userId)));
 }

@@ -11,21 +11,47 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import { useProjects } from "@/hooks/use-projects";
 import { useResetData } from "@/hooks/use-backup";
 import { GST_RATES_BPS, formatGstRate } from "@/lib/money";
 import { toPaise } from "@/lib/money";
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
-function Row({ label, description, children }: { label: string; description?: string; children: ReactNode }) {
+function Row({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-2 border-b py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-sm font-medium">{label}</p>
-        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+        {description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null}
       </div>
       <div className="sm:w-56">{children}</div>
     </div>
@@ -46,15 +72,27 @@ export default function SettingsPage() {
     { value: "all", label: "All Projects" },
     ...(projects ?? []).map((p) => ({ value: p.id, label: p.name })),
   ];
-  const monthOptions: SelectOption[] = MONTHS.map((m, i) => ({ value: String(i + 1), label: m }));
-  const gstOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({ value: String(r), label: formatGstRate(r) }));
+  const monthOptions: SelectOption[] = MONTHS.map((m, i) => ({
+    value: String(i + 1),
+    label: m,
+  }));
+  const gstOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({
+    value: String(r),
+    label: formatGstRate(r),
+  }));
 
   const save = (patch: Parameters<typeof update.mutate>[0]) =>
-    update.mutate(patch, { onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save") });
+    update.mutate(patch, {
+      onError: (e) =>
+        toast.error(e instanceof Error ? e.message : "Couldn't save"),
+    });
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" description="Preferences and data management." />
+      <PageHeader
+        title="Settings"
+        description="Preferences and data management."
+      />
 
       <Card>
         <CardHeader className="pb-2">
@@ -83,28 +121,42 @@ export default function SettingsPage() {
           <CardTitle className="text-base">Preferences</CardTitle>
         </CardHeader>
         <CardContent className="py-0">
-          <Row label="Default project" description="Pre-selected in quick-add forms.">
+          <Row
+            label="Default project"
+            description="Pre-selected in quick-add forms."
+          >
             <EntitySelect
               value={settings?.defaultProjectId ?? "all"}
-              onChange={(v) => save({ defaultProjectId: v === "all" ? null : v })}
+              onChange={(v) =>
+                save({ defaultProjectId: v === "all" ? null : v })
+              }
               options={projectOptions}
             />
           </Row>
-          <Row label="Financial year starts" description="India's FY starts in April.">
+          <Row
+            label="Financial year starts"
+            description="India's FY starts in April."
+          >
             <EntitySelect
               value={String(settings?.fyStartMonth ?? 4)}
               onChange={(v) => save({ fyStartMonth: Number(v) })}
               options={monthOptions}
             />
           </Row>
-          <Row label="Default GST rate" description="Pre-filled when GST is enabled.">
+          <Row
+            label="Default GST rate"
+            description="Pre-filled when GST is enabled."
+          >
             <EntitySelect
               value={String(settings?.defaultGstRateBps ?? 1800)}
               onChange={(v) => save({ defaultGstRateBps: Number(v) })}
               options={gstOptions}
             />
           </Row>
-          <Row label="Large-payment threshold" description="Calendar highlight. Use Auto for P90.">
+          <Row
+            label="Large-payment threshold"
+            description="Calendar highlight. Use Auto for P90."
+          >
             <div className="flex gap-2">
               <Input
                 inputMode="decimal"
@@ -134,7 +186,10 @@ export default function SettingsPage() {
               </Button>
             </div>
           </Row>
-          <Row label="Include archived projects" description="Count archived projects in 'All' totals.">
+          <Row
+            label="Include archived projects"
+            description="Count archived projects in 'All' totals."
+          >
             <div className="flex justify-end">
               <Switch
                 checked={settings?.includeArchivedInTotals ?? false}
@@ -147,16 +202,32 @@ export default function SettingsPage() {
 
       <Card className="border-destructive/30">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base text-destructive">Danger zone</CardTitle>
+          <CardTitle className="text-base text-destructive">
+            Danger zone
+          </CardTitle>
         </CardHeader>
         <CardContent className="py-0">
-          <Row label="Reset to sample data" description="Replace everything with the demo dataset.">
-            <Button variant="outline" className="w-full gap-2" onClick={() => setConfirmReseed(true)}>
+          <Row
+            label="Reset to sample data"
+            description="Replace everything with the demo dataset."
+          >
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => setConfirmReseed(true)}
+            >
               <RotateCcw className="size-4" /> Reseed
             </Button>
           </Row>
-          <Row label="Clear all data" description="Delete every transaction, project and more.">
-            <Button variant="destructive" className="w-full gap-2" onClick={() => setConfirmClear(true)}>
+          <Row
+            label="Clear all data"
+            description="Delete every transaction, project and more."
+          >
+            <Button
+              variant="destructive"
+              className="w-full gap-2"
+              onClick={() => setConfirmClear(true)}
+            >
               <Trash2 className="size-4" /> Clear everything
             </Button>
           </Row>
@@ -176,7 +247,8 @@ export default function SettingsPage() {
               toast.success("Sample data restored");
               setConfirmReseed(false);
             },
-            onError: (e) => toast.error(e instanceof Error ? e.message : "Reset failed"),
+            onError: (e) =>
+              toast.error(e instanceof Error ? e.message : "Reset failed"),
           })
         }
       />
@@ -194,7 +266,8 @@ export default function SettingsPage() {
               toast.success("All data cleared");
               setConfirmClear(false);
             },
-            onError: (e) => toast.error(e instanceof Error ? e.message : "Clear failed"),
+            onError: (e) =>
+              toast.error(e instanceof Error ? e.message : "Clear failed"),
           })
         }
       />

@@ -20,6 +20,8 @@ export const investments = pgTable(
   "investments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner (Neon Auth user id). Nullable until backfill, then set NOT NULL. */
+    userId: text("user_id"),
     name: text("name").notNull(),
     type: investmentTypeEnum("type").notNull(),
     projectId: uuid("project_id").references(() => projects.id, {
@@ -29,10 +31,15 @@ export const investments = pgTable(
     currentValue: bigint("current_value", { mode: "number" }).notNull(),
     purchaseDate: date("purchase_date", { mode: "string" }).notNull(),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
+    index("investments_user_idx").on(t.userId),
     index("investments_type_idx").on(t.type),
     index("investments_project_idx").on(t.projectId),
     check(

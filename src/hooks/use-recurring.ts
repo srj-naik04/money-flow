@@ -16,7 +16,10 @@ import type {
   RecurringUpdateInput,
 } from "@/lib/schemas/recurring";
 
-export function useRecurring(template?: RecurringTemplate, projectIdOverride?: string) {
+export function useRecurring(
+  template?: RecurringTemplate,
+  projectIdOverride?: string,
+) {
   const active = useActiveProjectId();
   const projectId = projectIdOverride ?? active;
   return useQuery({
@@ -26,7 +29,10 @@ export function useRecurring(template?: RecurringTemplate, projectIdOverride?: s
       if (projectId && projectId !== "all") p.set("projectId", projectId);
       if (template) p.set("template", template);
       const qs = p.toString();
-      return api.get<RecurringItemDTO[]>(`/api/recurring${qs ? `?${qs}` : ""}`, signal);
+      return api.get<RecurringItemDTO[]>(
+        `/api/recurring${qs ? `?${qs}` : ""}`,
+        signal,
+      );
     },
     placeholderData: keepPreviousData,
   });

@@ -81,7 +81,11 @@ export function advanceDueDate(
   const cur = fromISODate(currentISO);
   const next = addMonths(cur, months);
   const day = anchorDay ?? cur.getDate();
-  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  const lastDay = new Date(
+    next.getFullYear(),
+    next.getMonth() + 1,
+    0,
+  ).getDate();
   next.setDate(Math.min(day, lastDay));
   return toISODate(next);
 }
@@ -164,7 +168,10 @@ export type DateRange = { start: string; end: string }; // [start, end) — end 
 /** Start (inclusive) and next-month start (exclusive) for the month of `iso`. */
 export function monthRange(iso: string): DateRange {
   const d = parseISO(iso);
-  return { start: toISODate(startOfMonth(d)), end: toISODate(addMonths(startOfMonth(d), 1)) };
+  return {
+    start: toISODate(startOfMonth(d)),
+    end: toISODate(addMonths(startOfMonth(d), 1)),
+  };
 }
 
 /** Inclusive month bounds as ISO (first and last day of the month). */
@@ -174,7 +181,10 @@ export function monthBoundsInclusive(iso: string): DateRange {
 }
 
 /** Fiscal-year bounds (Indian FY starts in April by default). end is exclusive. */
-export function fiscalYearRange(iso: string, fyStartMonth = 4): DateRange & { label: string } {
+export function fiscalYearRange(
+  iso: string,
+  fyStartMonth = 4,
+): DateRange & { label: string } {
   const d = parseISO(iso);
   const month = d.getMonth() + 1;
   const year = d.getFullYear();
@@ -200,4 +210,11 @@ export function weekRange(iso: string, weekStartsOn: 0 | 1 = 1): DateRange {
   return { start: toISODate(start), end: toISODate(addDays(start, 7)) };
 }
 
-export { startOfMonth, endOfMonth, startOfQuarter, startOfYear, addMonths, addDays };
+export {
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  startOfYear,
+  addMonths,
+  addDays,
+};

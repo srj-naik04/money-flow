@@ -1,10 +1,29 @@
-import { and, eq, gte, lte, lt, gt, or, ilike, inArray, desc, asc, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  lte,
+  lt,
+  gt,
+  or,
+  ilike,
+  inArray,
+  desc,
+  asc,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { transactions, projects, categories, accounts } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { deriveTransactionAmounts } from "@/server/lib/derive";
 import type { TransactionDTO } from "@/types/domain";
-import type { TransactionFilters, TransactionSort, Paginated } from "@/types/api";
+import type {
+  TransactionFilters,
+  TransactionSort,
+  Paginated,
+} from "@/types/api";
 import type {
   TransactionCreateInput,
   TransactionUpdateInput,
@@ -72,17 +91,34 @@ const selectFields = {
 };
 
 function joined() {
+  const userId = getCurrentUserId();
+  // Join conditions also match user_id so enrichment (project/category/account
+  // names) can never surface another tenant's row even via a stray FK.
   return db
     .select(selectFields)
     .from(transactions)
-    .leftJoin(projects, eq(transactions.projectId, projects.id))
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .leftJoin(accounts, eq(transactions.accountId, accounts.id));
+    .leftJoin(
+      projects,
+      and(eq(transactions.projectId, projects.id), eq(projects.userId, userId)),
+    )
+    .leftJoin(
+      categories,
+      and(
+        eq(transactions.categoryId, categories.id),
+        eq(categories.userId, userId),
+      ),
+    )
+    .leftJoin(
+      accounts,
+      and(eq(transactions.accountId, accounts.id), eq(accounts.userId, userId)),
+    );
 }
 
 function filterConds(f: TransactionFilters): SQL[] {
-  const conds: SQL[] = [];
-  if (f.projectId && f.projectId !== "all") conds.push(eq(transactions.projectId, f.projectId));
+  // Tenant scope first — every list/totals/export/recent query funnels through here.
+  const conds: SQL[] = [eq(transactions.userId, getCurrentUserId())];
+  if (f.projectId && f.projectId !== "all")
+    conds.push(eq(transactions.projectId, f.projectId));
   if (f.type && f.type !== "all") conds.push(eq(transactions.type, f.type));
   if (f.categoryId) conds.push(eq(transactions.categoryId, f.categoryId));
   if (f.accountId) conds.push(eq(transactions.accountId, f.accountId));
@@ -90,7 +126,10 @@ function filterConds(f: TransactionFilters): SQL[] {
   if (f.to) conds.push(lte(transactions.occurredAt, f.to));
   if (f.q && f.q.trim()) {
     const term = `%${escapeLike(f.q.trim())}%`;
-    const search = or(ilike(transactions.vendor, term), ilike(transactions.notes, term));
+    const search = or(
+      ilike(transactions.vendor, term),
+      ilike(transactions.notes, term),
+    );
     if (search) conds.push(search);
   }
   return conds;
@@ -172,10 +211,20 @@ export async function transactionTotals(filters: TransactionFilters) {
   const conds = filterConds(filters);
   const [row] = await db
     .select({
-      income: sql<number>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
-      gst: sql<number>`coalesce(sum(${transactions.gstAmount}), 0)`.mapWith(Number),
-      net: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(Number),
+      income:
+        sql<number>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(
+          Number,
+        ),
+      expense:
+        sql<number>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(
+          Number,
+        ),
+      gst: sql<number>`coalesce(sum(${transactions.gstAmount}), 0)`.mapWith(
+        Number,
+      ),
+      net: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(
+        Number,
+      ),
       count: sql<number>`count(*)`.mapWith(Number),
     })
     .from(transactions)
@@ -184,12 +233,18 @@ export async function transactionTotals(filters: TransactionFilters) {
 }
 
 export async function getTransaction(id: string): Promise<TransactionDTO> {
-  const [row] = await joined().where(eq(transactions.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [row] = await joined()
+    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+    .limit(1);
   if (!row) throw AppError.notFound("Transaction not found");
   return toDTO(row);
 }
 
-export async function createTransaction(input: TransactionCreateInput): Promise<TransactionDTO> {
+export async function createTransaction(
+  input: TransactionCreateInput,
+): Promise<TransactionDTO> {
+  const userId = getCurrentUserId();
   const derived = deriveTransactionAmounts({
     type: input.type,
     amount: input.amount,
@@ -198,11 +253,12 @@ export async function createTransaction(input: TransactionCreateInput): Promise<
     gstRateBps: input.type === "expense" ? input.gstRateBps : undefined,
   });
 
-  // Idempotency + concurrency-safe: insert, and on a clientId conflict return
-  // the row that already exists (instead of a 409 to the losing request).
+  // Idempotency + concurrency-safe: insert, and on a (user, clientId) conflict
+  // return the row that already exists (instead of a 409 to the losing request).
   const inserted = await db
     .insert(transactions)
     .values({
+      userId,
       type: input.type,
       projectId: input.projectId ?? null,
       categoryId: input.type === "transfer" ? null : (input.categoryId ?? null),
@@ -211,12 +267,16 @@ export async function createTransaction(input: TransactionCreateInput): Promise<
       ...derived,
       vendor: input.type === "transfer" ? null : (input.vendor ?? null),
       notes: input.notes ?? null,
-      transferAccountId: input.type === "transfer" ? (input.transferAccountId ?? null) : null,
-      transferProjectId: input.type === "transfer" ? (input.transferProjectId ?? null) : null,
+      transferAccountId:
+        input.type === "transfer" ? (input.transferAccountId ?? null) : null,
+      transferProjectId:
+        input.type === "transfer" ? (input.transferProjectId ?? null) : null,
       clientId: input.clientId,
       dedupeHash: input.dedupeHash ?? null,
     })
-    .onConflictDoNothing({ target: transactions.clientId })
+    .onConflictDoNothing({
+      target: [transactions.userId, transactions.clientId],
+    })
     .returning({ id: transactions.id });
 
   if (inserted.length) return getTransaction(inserted[0].id);
@@ -224,7 +284,12 @@ export async function createTransaction(input: TransactionCreateInput): Promise<
   const [existing] = await db
     .select({ id: transactions.id })
     .from(transactions)
-    .where(eq(transactions.clientId, input.clientId))
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.clientId, input.clientId),
+      ),
+    )
     .limit(1);
   if (!existing) throw AppError.conflict("Could not create transaction.");
   return getTransaction(existing.id);
@@ -234,22 +299,34 @@ export async function updateTransaction(
   id: string,
   input: TransactionUpdateInput,
 ): Promise<TransactionDTO> {
-  const [existing] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [existing] = await db
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+    .limit(1);
   if (!existing) throw AppError.notFound("Transaction not found");
 
   if (existing.type === "transfer") {
-    const acc = input.accountId !== undefined ? input.accountId : existing.accountId;
+    const acc =
+      input.accountId !== undefined ? input.accountId : existing.accountId;
     const tacc =
-      input.transferAccountId !== undefined ? input.transferAccountId : existing.transferAccountId;
+      input.transferAccountId !== undefined
+        ? input.transferAccountId
+        : existing.transferAccountId;
     if (!acc || !tacc) {
-      throw AppError.badRequest("Transfers need both a source and destination account.");
+      throw AppError.badRequest(
+        "Transfers need both a source and destination account.",
+      );
     }
     if (acc === tacc) {
       throw AppError.badRequest("Source and destination accounts must differ.");
     }
   }
 
-  const set: Partial<typeof transactions.$inferInsert> = { updatedAt: new Date() };
+  const set: Partial<typeof transactions.$inferInsert> = {
+    updatedAt: new Date(),
+  };
 
   if (input.occurredAt !== undefined) set.occurredAt = input.occurredAt;
   if (input.projectId !== undefined) set.projectId = input.projectId;
@@ -257,8 +334,10 @@ export async function updateTransaction(
   if (input.accountId !== undefined) set.accountId = input.accountId;
   if (input.vendor !== undefined) set.vendor = input.vendor;
   if (input.notes !== undefined) set.notes = input.notes;
-  if (input.transferAccountId !== undefined) set.transferAccountId = input.transferAccountId;
-  if (input.transferProjectId !== undefined) set.transferProjectId = input.transferProjectId;
+  if (input.transferAccountId !== undefined)
+    set.transferAccountId = input.transferAccountId;
+  if (input.transferProjectId !== undefined)
+    set.transferProjectId = input.transferProjectId;
 
   // Recompute money only when an amount or GST flag is provided.
   const recompute =
@@ -277,32 +356,39 @@ export async function updateTransaction(
     const derived = deriveTransactionAmounts({
       type: existing.type,
       amount: enteredAmount,
-      gstEnabled: existing.type === "expense" ? (input.gstEnabled ?? existing.gstRateBps > 0) : false,
+      gstEnabled:
+        existing.type === "expense"
+          ? (input.gstEnabled ?? existing.gstRateBps > 0)
+          : false,
       gstIncluded: input.gstIncluded ?? existing.gstIncluded,
       gstRateBps: input.gstRateBps ?? existing.gstRateBps,
     });
     Object.assign(set, derived);
   }
 
-  const [row] = await db.update(transactions).set(set).where(eq(transactions.id, id)).returning({
-    id: transactions.id,
-  });
+  const [row] = await db
+    .update(transactions)
+    .set(set)
+    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+    .returning({ id: transactions.id });
   return getTransaction(row.id);
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
+  const userId = getCurrentUserId();
   const deleted = await db
     .delete(transactions)
-    .where(eq(transactions.id, id))
+    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
     .returning({ id: transactions.id });
   if (deleted.length === 0) throw AppError.notFound("Transaction not found");
 }
 
 export async function bulkDeleteTransactions(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
+  const userId = getCurrentUserId();
   const deleted = await db
     .delete(transactions)
-    .where(inArray(transactions.id, ids))
+    .where(and(eq(transactions.userId, userId), inArray(transactions.id, ids)))
     .returning({ id: transactions.id });
   return deleted.length;
 }

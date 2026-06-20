@@ -20,7 +20,8 @@ export function useGoals() {
 export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: GoalCreateInput) => api.post<GoalDTO>("/api/goals", input),
+    mutationFn: (input: GoalCreateInput) =>
+      api.post<GoalDTO>("/api/goals", input),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

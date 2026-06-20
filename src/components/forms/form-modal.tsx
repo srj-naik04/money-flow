@@ -55,7 +55,9 @@ export function FormModal({
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
-            {description ? <DialogDescription>{description}</DialogDescription> : null}
+            {description ? (
+              <DialogDescription>{description}</DialogDescription>
+            ) : null}
           </DialogHeader>
           {children}
         </DialogContent>
@@ -71,7 +73,9 @@ export function FormModal({
       >
         <SheetHeader className="px-0 pt-1">
           <SheetTitle>{title}</SheetTitle>
-          {description ? <SheetDescription>{description}</SheetDescription> : null}
+          {description ? (
+            <SheetDescription>{description}</SheetDescription>
+          ) : null}
         </SheetHeader>
         {children}
       </SheetContent>

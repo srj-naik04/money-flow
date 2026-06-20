@@ -20,6 +20,8 @@ export const goalContributions = pgTable(
   "goal_contributions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner (Neon Auth user id), denormalized from the parent goal. */
+    userId: text("user_id"),
     goalId: uuid("goal_id")
       .notNull()
       .references(() => goals.id, { onDelete: "cascade" }),
@@ -29,9 +31,12 @@ export const goalContributions = pgTable(
     transactionId: uuid("transaction_id").references(() => transactions.id, {
       onDelete: "set null",
     }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
+    index("gc_user_idx").on(t.userId),
     index("gc_goal_idx").on(t.goalId),
     check("gc_amount_nonzero", sql`${t.amount} <> 0`),
   ],

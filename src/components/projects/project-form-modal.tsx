@@ -72,11 +72,18 @@ export function ProjectFormModal({
       open={open}
       onOpenChange={onOpenChange}
       title={editing ? "Edit Project" : "New Project"}
-      description={editing ? undefined : "Group income and expenses by project."}
+      description={
+        editing ? undefined : "Group income and expenses by project."
+      }
     >
       <form onSubmit={onSubmit} className="space-y-4 pt-2">
         <Field label="Name" htmlFor="p-name" error={errors.name?.message}>
-          <Input id="p-name" autoFocus placeholder="e.g. AI SaaS" {...register("name")} />
+          <Input
+            id="p-name"
+            autoFocus
+            placeholder="e.g. AI SaaS"
+            {...register("name")}
+          />
         </Field>
 
         <Field label="Color">
@@ -123,11 +130,21 @@ export function ProjectFormModal({
         ) : null}
 
         <Field label="Description" htmlFor="p-desc">
-          <Textarea id="p-desc" rows={2} placeholder="Optional…" {...register("description")} />
+          <Textarea
+            id="p-desc"
+            rows={2}
+            placeholder="Optional…"
+            {...register("description")}
+          />
         </Field>
 
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>

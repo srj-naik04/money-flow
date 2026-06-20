@@ -12,7 +12,8 @@ export type QuickAddType =
   | "salary"
   | "emi"
   | "sip"
-  | "goal";
+  | "goal"
+  | "deposit";
 
 type UiState = {
   /** "all" or a project uuid. */
@@ -44,7 +45,8 @@ export const useUiStore = create<UiState>()(
       setActiveProject: (id) => set({ activeProjectId: id }),
 
       sidebarCollapsed: false,
-      toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      toggleSidebar: () =>
+        set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
 
       commandOpen: false,

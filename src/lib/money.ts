@@ -25,7 +25,11 @@ export function toPaise(rupees: string | number | null | undefined): number {
   if (typeof rupees === "number") {
     return Number.isFinite(rupees) ? Math.round(rupees * PAISE_PER_RUPEE) : NaN;
   }
-  const raw = rupees.replace(/₹/g, "").replace(/,/g, "").replace(/\s/g, "").trim();
+  const raw = rupees
+    .replace(/₹/g, "")
+    .replace(/,/g, "")
+    .replace(/\s/g, "")
+    .trim();
   if (raw === "") return 0;
   // Reject non-numeric / multi-dot / scientific notation rather than coercing.
   if (!/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) return NaN;
@@ -33,7 +37,8 @@ export function toPaise(rupees: string | number | null | undefined): number {
   const unsigned = negative ? raw.slice(1) : raw;
   const [intPart = "0", fracRaw = ""] = unsigned.split(".");
   const frac = (fracRaw + "00").slice(0, 2);
-  const paise = parseInt(intPart || "0", 10) * PAISE_PER_RUPEE + parseInt(frac, 10);
+  const paise =
+    parseInt(intPart || "0", 10) * PAISE_PER_RUPEE + parseInt(frac, 10);
   return negative ? -paise : paise;
 }
 
@@ -62,10 +67,15 @@ const inrNumber = new Intl.NumberFormat("en-IN", {
 });
 
 /** Format paise as a localized INR currency string, e.g. 236050 -> "₹2,360.50". */
-export function formatINR(paise: number, opts?: { decimals?: boolean }): string {
+export function formatINR(
+  paise: number,
+  opts?: { decimals?: boolean },
+): string {
   const decimals = opts?.decimals ?? true;
   const value = toRupees(paise);
-  return decimals ? inrFormatter.format(value) : inrFormatterNoDecimals.format(value);
+  return decimals
+    ? inrFormatter.format(value)
+    : inrFormatterNoDecimals.format(value);
 }
 
 /** Format paise as a grouped number without the currency symbol, e.g. "2,360.50". */
@@ -81,7 +91,8 @@ export function formatINRCompact(paise: number): string {
   const rupees = toRupees(paise);
   const abs = Math.abs(rupees);
   const sign = rupees < 0 ? "-" : "";
-  const trim = (n: number, digits: number) => parseFloat(n.toFixed(digits)).toString();
+  const trim = (n: number, digits: number) =>
+    parseFloat(n.toFixed(digits)).toString();
   if (abs >= 1_00_00_000) return `${sign}₹${trim(abs / 1_00_00_000, 2)}Cr`;
   if (abs >= 1_00_000) return `${sign}₹${trim(abs / 1_00_000, 2)}L`;
   if (abs >= 1_000) return `${sign}₹${trim(abs / 1_000, 1)}K`;
@@ -103,8 +114,12 @@ export type GstSplit = {
  * Split a GST-**inclusive** gross amount into base + gst at the given rate.
  * base = round(gross * 10000 / (10000 + bps)); gst = gross - base (remainder-absorbing).
  */
-export function splitGstInclusive(grossPaise: number, rateBps: number): GstSplit {
-  if (rateBps <= 0) return { base: grossPaise, gst: 0, gross: grossPaise, rateBps: 0 };
+export function splitGstInclusive(
+  grossPaise: number,
+  rateBps: number,
+): GstSplit {
+  if (rateBps <= 0)
+    return { base: grossPaise, gst: 0, gross: grossPaise, rateBps: 0 };
   const base = Math.round((grossPaise * 10000) / (10000 + rateBps));
   const gst = grossPaise - base;
   return { base, gst, gross: grossPaise, rateBps };
@@ -114,8 +129,12 @@ export function splitGstInclusive(grossPaise: number, rateBps: number): GstSplit
  * Add GST to a GST-**exclusive** base amount.
  * gst = round(base * bps / 10000); gross = base + gst.
  */
-export function splitGstExclusive(basePaise: number, rateBps: number): GstSplit {
-  if (rateBps <= 0) return { base: basePaise, gst: 0, gross: basePaise, rateBps: 0 };
+export function splitGstExclusive(
+  basePaise: number,
+  rateBps: number,
+): GstSplit {
+  if (rateBps <= 0)
+    return { base: basePaise, gst: 0, gross: basePaise, rateBps: 0 };
   const gst = Math.round((basePaise * rateBps) / 10000);
   return { base: basePaise, gst, gross: basePaise + gst, rateBps };
 }

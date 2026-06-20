@@ -27,7 +27,9 @@ export function ProjectFilter() {
         render={<Button variant="outline" size="sm" className="gap-2" />}
       >
         {!isAll ? <ProjectDot color={active!.color} /> : null}
-        <span className="max-w-32 truncate">{isAll ? "All Projects" : active!.name}</span>
+        <span className="max-w-32 truncate">
+          {isAll ? "All Projects" : active!.name}
+        </span>
         <ChevronDown className="size-4 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">

@@ -10,9 +10,15 @@ import {
   transactions,
 } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { deriveSubscriptionAmounts } from "@/server/lib/derive";
 import { toPaise } from "@/lib/money";
-import { todayISO, cycleToMonths, fromISODate, advanceDueDate } from "@/lib/date";
+import {
+  todayISO,
+  cycleToMonths,
+  fromISODate,
+  advanceDueDate,
+} from "@/lib/date";
 import {
   subscriptionMonthlyPaise,
   dueBucket,
@@ -40,6 +46,7 @@ const selectFields = {
   gstAmount: recurringItems.gstAmount,
   gstRateBps: recurringItems.gstRateBps,
   gstIncluded: recurringItems.gstIncluded,
+  grossSalary: recurringItems.grossSalary,
   billingCycle: recurringItems.billingCycle,
   anchorDate: recurringItems.anchorDate,
   status: recurringItems.status,
@@ -65,6 +72,7 @@ function toDTO(r: Record<string, unknown>): RecurringItemDTO {
   const anchorDate = r.anchorDate as string;
   const billingCycle = r.billingCycle as BillingCycle;
   const amount = r.amount as number;
+  const grossSalary = (r.grossSalary as number | null) ?? null;
   const totalInstallments = (r.totalInstallments as number | null) ?? null;
   const installmentsPaid = (r.installmentsPaid as number) ?? 0;
   return {
@@ -96,29 +104,63 @@ function toDTO(r: Record<string, unknown>): RecurringItemDTO {
     interestRateBps: (r.interestRateBps as number | null) ?? null,
     investmentId: (r.investmentId as string | null) ?? null,
     investmentName: (r.investmentName as string | null) ?? null,
+    grossSalary,
+    deductions: grossSalary != null ? Math.max(0, grossSalary - amount) : null,
     nextDue: anchorDate,
     daysUntil: daysUntil(anchorDate, today),
     bucket: dueBucket(anchorDate, today),
     monthlyEquivalent: subscriptionMonthlyPaise(amount, billingCycle),
-    outstandingAmount: emiOutstanding(amount, totalInstallments, installmentsPaid),
+    outstandingAmount: emiOutstanding(
+      amount,
+      totalInstallments,
+      installmentsPaid,
+    ),
     payoffPct: payoffPct(totalInstallments, installmentsPaid),
   };
 }
 
 function baseQuery() {
+  const userId = getCurrentUserId();
+  // Join conditions also match user_id so enrichment (project/category/account/
+  // investment names) can never surface another tenant's row even via a stray FK.
   return db
     .select(selectFields)
     .from(recurringItems)
-    .leftJoin(projects, eq(recurringItems.projectId, projects.id))
-    .leftJoin(categories, eq(recurringItems.categoryId, categories.id))
-    .leftJoin(accounts, eq(recurringItems.accountId, accounts.id))
-    .leftJoin(investments, eq(recurringItems.investmentId, investments.id));
+    .leftJoin(
+      projects,
+      and(
+        eq(recurringItems.projectId, projects.id),
+        eq(projects.userId, userId),
+      ),
+    )
+    .leftJoin(
+      categories,
+      and(
+        eq(recurringItems.categoryId, categories.id),
+        eq(categories.userId, userId),
+      ),
+    )
+    .leftJoin(
+      accounts,
+      and(
+        eq(recurringItems.accountId, accounts.id),
+        eq(accounts.userId, userId),
+      ),
+    )
+    .leftJoin(
+      investments,
+      and(
+        eq(recurringItems.investmentId, investments.id),
+        eq(investments.userId, userId),
+      ),
+    );
 }
 
 export async function listRecurring(
   opts: { projectId?: string; template?: RecurringTemplate } = {},
 ): Promise<RecurringItemDTO[]> {
-  const conds: SQL[] = [];
+  // Tenant scope first — every recurring list query funnels through here.
+  const conds: SQL[] = [eq(recurringItems.userId, getCurrentUserId())];
   if (opts.projectId && opts.projectId !== "all") {
     conds.push(eq(recurringItems.projectId, opts.projectId));
   }
@@ -130,7 +172,10 @@ export async function listRecurring(
 }
 
 export async function getRecurring(id: string): Promise<RecurringItemDTO> {
-  const [row] = await baseQuery().where(eq(recurringItems.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [row] = await baseQuery()
+    .where(and(eq(recurringItems.id, id), eq(recurringItems.userId, userId)))
+    .limit(1);
   if (!row) throw AppError.notFound("Recurring item not found");
   return toDTO(row as Record<string, unknown>);
 }
@@ -138,6 +183,7 @@ export async function getRecurring(id: string): Promise<RecurringItemDTO> {
 export async function createRecurring(
   input: RecurringCreateInput,
 ): Promise<RecurringItemDTO> {
+  const userId = getCurrentUserId();
   const flow = TEMPLATE_FLOW[input.template];
   const isExpense = flow === "expense";
   // GST only applies to EMIs; salary/SIP store base = amount, gst = 0.
@@ -150,11 +196,18 @@ export async function createRecurring(
   const [row] = await db
     .insert(recurringItems)
     .values({
+      userId,
       flow,
       template: input.template,
       name: input.name,
       notes: input.notes ?? null,
       ...amounts,
+      grossSalary:
+        input.template === "salary" &&
+        input.grossAmount != null &&
+        input.grossAmount > 0
+          ? toPaise(input.grossAmount)
+          : null,
       billingCycle: input.billingCycle,
       anchorDate: input.anchorDate,
       anchorDay: fromISODate(input.anchorDate).getDate(),
@@ -163,12 +216,17 @@ export async function createRecurring(
       accountId: input.accountId ?? null,
       projectId: input.projectId ?? null,
       categoryId: input.template === "sip" ? null : (input.categoryId ?? null),
-      principalAmount: input.principalAmount != null ? toPaise(input.principalAmount) : null,
-      totalInstallments: input.template === "emi" ? (input.totalInstallments ?? null) : null,
+      principalAmount:
+        input.principalAmount != null ? toPaise(input.principalAmount) : null,
+      totalInstallments:
+        input.template === "emi" ? (input.totalInstallments ?? null) : null,
       installmentsPaid: 0,
       interestRateBps:
-        input.interestRatePct != null ? Math.round(input.interestRatePct * 100) : null,
-      investmentId: input.template === "sip" ? (input.investmentId ?? null) : null,
+        input.interestRatePct != null
+          ? Math.round(input.interestRatePct * 100)
+          : null,
+      investmentId:
+        input.template === "sip" ? (input.investmentId ?? null) : null,
     })
     .returning({ id: recurringItems.id });
   return getRecurring(row.id);
@@ -178,15 +236,18 @@ export async function updateRecurring(
   id: string,
   input: RecurringUpdateInput,
 ): Promise<RecurringItemDTO> {
+  const userId = getCurrentUserId();
   const [existing] = await db
     .select()
     .from(recurringItems)
-    .where(eq(recurringItems.id, id))
+    .where(and(eq(recurringItems.id, id), eq(recurringItems.userId, userId)))
     .limit(1);
   if (!existing) throw AppError.notFound("Recurring item not found");
   const isExpense = existing.flow === "expense";
 
-  const set: Partial<typeof recurringItems.$inferInsert> = { updatedAt: new Date() };
+  const set: Partial<typeof recurringItems.$inferInsert> = {
+    updatedAt: new Date(),
+  };
   if (input.name !== undefined) set.name = input.name;
   if (input.billingCycle !== undefined) set.billingCycle = input.billingCycle;
   if (input.anchorDate !== undefined) {
@@ -201,12 +262,16 @@ export async function updateRecurring(
   if (input.categoryId !== undefined && existing.template !== "sip") {
     set.categoryId = input.categoryId;
   }
-  if (input.principalAmount !== undefined) set.principalAmount = toPaise(input.principalAmount);
+  if (input.principalAmount !== undefined)
+    set.principalAmount = toPaise(input.principalAmount);
   if (input.totalInstallments !== undefined && existing.template === "emi") {
     set.totalInstallments = input.totalInstallments;
   }
   if (input.interestRatePct !== undefined) {
     set.interestRateBps = Math.round(input.interestRatePct * 100);
+  }
+  if (input.grossAmount !== undefined) {
+    set.grossSalary = input.grossAmount > 0 ? toPaise(input.grossAmount) : null;
   }
   if (input.notes !== undefined) set.notes = input.notes;
 
@@ -224,21 +289,27 @@ export async function updateRecurring(
           : existing.baseAmount / 100;
     const amounts = deriveSubscriptionAmounts({
       amount: enteredAmount,
-      gstEnabled: isExpense ? (input.gstEnabled ?? existing.gstRateBps > 0) : false,
+      gstEnabled: isExpense
+        ? (input.gstEnabled ?? existing.gstRateBps > 0)
+        : false,
       gstIncluded: input.gstIncluded ?? existing.gstIncluded,
       gstRateBps: input.gstRateBps ?? existing.gstRateBps,
     });
     Object.assign(set, amounts);
   }
 
-  await db.update(recurringItems).set(set).where(eq(recurringItems.id, id));
+  await db
+    .update(recurringItems)
+    .set(set)
+    .where(and(eq(recurringItems.id, id), eq(recurringItems.userId, userId)));
   return getRecurring(id);
 }
 
 export async function deleteRecurring(id: string): Promise<void> {
+  const userId = getCurrentUserId();
   const deleted = await db
     .delete(recurringItems)
-    .where(eq(recurringItems.id, id))
+    .where(and(eq(recurringItems.id, id), eq(recurringItems.userId, userId)))
     .returning({ id: recurringItems.id });
   if (deleted.length === 0) throw AppError.notFound("Recurring item not found");
 }
@@ -255,21 +326,34 @@ export async function deleteRecurring(id: string): Promise<void> {
  * so a cycle is only ever claimed once.
  */
 export async function markRecurringDone(id: string): Promise<RecurringItemDTO> {
+  const userId = getCurrentUserId();
   const [row] = await db
     .select()
     .from(recurringItems)
-    .where(eq(recurringItems.id, id))
+    .where(and(eq(recurringItems.id, id), eq(recurringItems.userId, userId)))
     .limit(1);
   if (!row) throw AppError.notFound("Recurring item not found");
-  if (row.status !== "active") throw AppError.badRequest("This item isn't active.");
+  if (row.status !== "active")
+    throw AppError.badRequest("This item isn't active.");
 
   const postingDate = row.anchorDate;
-  const nextDate = advanceDueDate(postingDate, cycleToMonths(row.billingCycle), row.anchorDay);
-  const guard = and(eq(recurringItems.id, id), eq(recurringItems.anchorDate, postingDate));
+  const nextDate = advanceDueDate(
+    postingDate,
+    cycleToMonths(row.billingCycle),
+    row.anchorDay,
+  );
+  // The guard scopes every cycle-advance UPDATE to this user's row.
+  const guard = and(
+    eq(recurringItems.id, id),
+    eq(recurringItems.userId, userId),
+    eq(recurringItems.anchorDate, postingDate),
+  );
 
   if (row.flow === "investment") {
     if (!row.investmentId) {
-      throw AppError.badRequest("This SIP's investment was removed. Edit or delete the SIP.");
+      throw AppError.badRequest(
+        "This SIP's investment was removed. Edit or delete the SIP.",
+      );
     }
     // Claim this cycle first; only grow the investment if we won the claim.
     const advanced = await db
@@ -279,9 +363,17 @@ export async function markRecurringDone(id: string): Promise<RecurringItemDTO> {
       .returning({ id: recurringItems.id });
     if (advanced.length === 1 && row.autoPost) {
       const [inv] = await db
-        .select({ invested: investments.investedAmount, current: investments.currentValue })
+        .select({
+          invested: investments.investedAmount,
+          current: investments.currentValue,
+        })
         .from(investments)
-        .where(eq(investments.id, row.investmentId))
+        .where(
+          and(
+            eq(investments.id, row.investmentId),
+            eq(investments.userId, userId),
+          ),
+        )
         .limit(1);
       if (inv) {
         const newCurrent = inv.current + row.amount;
@@ -292,10 +384,19 @@ export async function markRecurringDone(id: string): Promise<RecurringItemDTO> {
             currentValue: newCurrent,
             updatedAt: new Date(),
           })
-          .where(eq(investments.id, row.investmentId));
+          .where(
+            and(
+              eq(investments.id, row.investmentId),
+              eq(investments.userId, userId),
+            ),
+          );
         await db
           .insert(investmentValueHistory)
-          .values({ investmentId: row.investmentId, value: newCurrent });
+          .values({
+            userId,
+            investmentId: row.investmentId,
+            value: newCurrent,
+          });
       }
     }
     return getRecurring(id);
@@ -308,6 +409,7 @@ export async function markRecurringDone(id: string): Promise<RecurringItemDTO> {
     await db
       .insert(transactions)
       .values({
+        userId,
         type: isIncome ? "income" : "expense",
         projectId: row.projectId,
         categoryId: row.categoryId,
@@ -326,18 +428,29 @@ export async function markRecurringDone(id: string): Promise<RecurringItemDTO> {
         clientId: recurringClientId(id, postingDate),
         dedupeHash: null,
       })
-      .onConflictDoNothing({ target: transactions.clientId });
+      .onConflictDoNothing({
+        target: [transactions.userId, transactions.clientId],
+      });
   }
 
   if (row.template === "emi") {
     const newPaid = row.installmentsPaid + 1;
-    const done = row.totalInstallments != null && newPaid >= row.totalInstallments;
+    const done =
+      row.totalInstallments != null && newPaid >= row.totalInstallments;
     await db
       .update(recurringItems)
       .set(
         done
-          ? { installmentsPaid: newPaid, status: "completed", updatedAt: new Date() }
-          : { installmentsPaid: newPaid, anchorDate: nextDate, updatedAt: new Date() },
+          ? {
+              installmentsPaid: newPaid,
+              status: "completed",
+              updatedAt: new Date(),
+            }
+          : {
+              installmentsPaid: newPaid,
+              anchorDate: nextDate,
+              updatedAt: new Date(),
+            },
       )
       .where(guard);
   } else {

@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
 
 import { useCreateInvestment } from "@/hooks/use-investments";
@@ -34,8 +37,12 @@ const schema = z.object({
     "real_estate",
     "other",
   ]),
-  invested: z.string().refine((v) => toPaise(v) > 0, "Enter the invested amount"),
-  currentValue: z.string().refine((v) => toPaise(v) >= 0, "Enter the current value"),
+  invested: z
+    .string()
+    .refine((v) => toPaise(v) > 0, "Enter the invested amount"),
+  currentValue: z
+    .string()
+    .refine((v) => toPaise(v) >= 0, "Enter the current value"),
   purchaseDate: z.string().min(1, "Pick a date"),
   projectId: z.string().optional(),
   notes: z.string().optional(),
@@ -65,8 +72,14 @@ export function InvestmentForm({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({ value: p.id, label: p.name }));
-  const typeOptions: SelectOption[] = INVESTMENT_TYPES.map((t) => ({ value: t.value, label: t.label }));
+  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
+  const typeOptions: SelectOption[] = INVESTMENT_TYPES.map((t) => ({
+    value: t.value,
+    label: t.label,
+  }));
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -82,14 +95,21 @@ export function InvestmentForm({ onDone }: { onDone: () => void }) {
       toast.success("Investment added");
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add investment");
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't add investment",
+      );
     }
   });
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pt-2">
       <Field label="Name" htmlFor="name" error={errors.name?.message}>
-        <Input id="name" autoFocus placeholder="e.g. Nifty 50 Index Fund" {...register("name")} />
+        <Input
+          id="name"
+          autoFocus
+          placeholder="e.g. Nifty 50 Index Fund"
+          {...register("name")}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -98,21 +118,45 @@ export function InvestmentForm({ onDone }: { onDone: () => void }) {
             control={control}
             name="type"
             render={({ field }) => (
-              <EntitySelect value={field.value} onChange={field.onChange} options={typeOptions} />
+              <EntitySelect
+                value={field.value}
+                onChange={field.onChange}
+                options={typeOptions}
+              />
             )}
           />
         </Field>
-        <Field label="Purchase date" htmlFor="purchase" error={errors.purchaseDate?.message}>
+        <Field
+          label="Purchase date"
+          htmlFor="purchase"
+          error={errors.purchaseDate?.message}
+        >
           <DateField id="purchase" {...register("purchaseDate")} />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Invested" htmlFor="invested" error={errors.invested?.message}>
-          <AmountInput id="invested" aria-invalid={!!errors.invested} {...register("invested")} />
+        <Field
+          label="Invested"
+          htmlFor="invested"
+          error={errors.invested?.message}
+        >
+          <AmountInput
+            id="invested"
+            aria-invalid={!!errors.invested}
+            {...register("invested")}
+          />
         </Field>
-        <Field label="Current value" htmlFor="current" error={errors.currentValue?.message}>
-          <AmountInput id="current" aria-invalid={!!errors.currentValue} {...register("currentValue")} />
+        <Field
+          label="Current value"
+          htmlFor="current"
+          error={errors.currentValue?.message}
+        >
+          <AmountInput
+            id="current"
+            aria-invalid={!!errors.currentValue}
+            {...register("currentValue")}
+          />
         </Field>
       </div>
 
@@ -121,17 +165,32 @@ export function InvestmentForm({ onDone }: { onDone: () => void }) {
           control={control}
           name="projectId"
           render={({ field }) => (
-            <EntitySelect value={field.value} onChange={field.onChange} options={projectOptions} placeholder="Unassigned" />
+            <EntitySelect
+              value={field.value}
+              onChange={field.onChange}
+              options={projectOptions}
+              placeholder="Unassigned"
+            />
           )}
         />
       </Field>
 
       <Field label="Notes" htmlFor="notes">
-        <Textarea id="notes" rows={2} placeholder="Optional…" {...register("notes")} />
+        <Textarea
+          id="notes"
+          rows={2}
+          placeholder="Optional…"
+          {...register("notes")}
+        />
       </Field>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onDone} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDone}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>

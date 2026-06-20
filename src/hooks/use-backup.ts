@@ -8,7 +8,9 @@ export function useImportBackup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (snapshot: unknown) =>
-      api.post<{ counts: Record<string, number> }>("/api/backup/import", { snapshot }),
+      api.post<{ counts: Record<string, number> }>("/api/backup/import", {
+        snapshot,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }
@@ -16,7 +18,8 @@ export function useImportBackup() {
 export function useResetData() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (mode: "seed" | "clear") => api.post<{ mode: string }>("/api/backup/reset", { mode }),
+    mutationFn: (mode: "seed" | "clear") =>
+      api.post<{ mode: string }>("/api/backup/reset", { mode }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

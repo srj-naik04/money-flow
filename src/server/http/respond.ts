@@ -7,8 +7,14 @@ export function ok<T>(data: T, init?: ResponseInit): NextResponse {
 }
 
 /** Paginated success envelope. */
-export function list<T>(items: T[], nextCursor: string | null = null): NextResponse {
-  return NextResponse.json({ ok: true, data: { items, nextCursor } satisfies Paginated<T> });
+export function list<T>(
+  items: T[],
+  nextCursor: string | null = null,
+): NextResponse {
+  return NextResponse.json({
+    ok: true,
+    data: { items, nextCursor } satisfies Paginated<T>,
+  });
 }
 
 /** Failure envelope. */

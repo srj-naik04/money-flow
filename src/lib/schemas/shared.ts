@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const HEX_RE = /^#([0-9a-fA-F]{6})$/;
 
@@ -20,7 +21,10 @@ export const zRupees = z.coerce
   .refine((v) => Math.abs(v) <= 1e11, "That amount is too large");
 
 /** Rupee amount that must be > 0. */
-export const zPositiveRupees = zRupees.refine((v) => v > 0, "Amount must be greater than 0");
+export const zPositiveRupees = zRupees.refine(
+  (v) => v > 0,
+  "Amount must be greater than 0",
+);
 
 /** GST rate in basis points (0..10000). */
 export const zGstRateBps = z.coerce.number().int().min(0).max(10000);
@@ -38,13 +42,22 @@ export const zOptionalText = (max = 500) =>
 
 /** Required non-empty trimmed text. */
 export const zRequiredText = (label = "This field", max = 200) =>
-  z.string().trim().min(1, `${label} is required`).max(max, `Keep ${label} under ${max} characters`);
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(max, `Keep ${label} under ${max} characters`);
 
 // Enum schemas (mirror the Drizzle enums)
 export const zTxnType = z.enum(["income", "expense", "transfer"]);
 export const zCategoryKind = z.enum(["income", "expense"]);
 export const zProjectStatus = z.enum(["active", "completed"]);
-export const zBillingCycle = z.enum(["monthly", "quarterly", "half_yearly", "yearly"]);
+export const zBillingCycle = z.enum([
+  "monthly",
+  "quarterly",
+  "half_yearly",
+  "yearly",
+]);
 export const zSubStatus = z.enum(["active", "paused", "cancelled"]);
 export const zInvestmentType = z.enum([
   "stock",
@@ -57,7 +70,21 @@ export const zInvestmentType = z.enum([
   "real_estate",
   "other",
 ]);
-export const zAccountType = z.enum(["bank", "cash", "credit_card", "wallet", "upi", "other"]);
+export const zAccountType = z.enum([
+  "bank",
+  "cash",
+  "credit_card",
+  "wallet",
+  "upi",
+  "other",
+]);
 export const zRecurringTemplate = z.enum(["salary", "emi", "sip"]);
-export const zRecurringStatus = z.enum(["active", "paused", "completed", "cancelled"]);
+export const zRecurringStatus = z.enum([
+  "active",
+  "paused",
+  "completed",
+  "cancelled",
+]);
 export const zGoalStatus = z.enum(["active", "achieved", "archived"]);
+export const zDepositType = z.enum(["fd", "rd"]);
+export const zDepositStatus = z.enum(["active", "matured", "closed"]);

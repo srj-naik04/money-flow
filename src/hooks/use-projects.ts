@@ -20,7 +20,8 @@ export function useProjects() {
 export function useProjectsWithStats() {
   return useQuery({
     queryKey: [...qk.projects(), "stats"],
-    queryFn: ({ signal }) => api.get<ProjectWithStatsDTO[]>("/api/projects?stats=1", signal),
+    queryFn: ({ signal }) =>
+      api.get<ProjectWithStatsDTO[]>("/api/projects?stats=1", signal),
   });
 }
 
@@ -35,7 +36,8 @@ export function useProject(id: string | undefined) {
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: ProjectCreateInput) => api.post<ProjectDTO>("/api/projects", input),
+    mutationFn: (input: ProjectCreateInput) =>
+      api.post<ProjectDTO>("/api/projects", input),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }
@@ -53,7 +55,10 @@ export function useDeleteProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input?: ProjectDeleteInput }) =>
-      api.del<{ id: string }>(`/api/projects/${id}`, input ?? { mode: "block" }),
+      api.del<{ id: string }>(
+        `/api/projects/${id}`,
+        input ?? { mode: "block" },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

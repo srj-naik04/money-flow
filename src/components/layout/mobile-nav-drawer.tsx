@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, Wallet } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, Wallet, LogOut } from "lucide-react";
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth/client";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +26,16 @@ function isActive(pathname: string, href: string): boolean {
  */
 export function MobileNavDrawer() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
   const [open, setOpen] = useState(false);
+
+  async function signOut() {
+    setOpen(false);
+    await authClient.signOut();
+    router.replace("/auth/sign-in");
+    router.refresh();
+  }
 
   return (
     <>
@@ -46,7 +61,10 @@ export function MobileNavDrawer() {
             <SheetTitle>MoneyFlow</SheetTitle>
           </SheetHeader>
 
-          <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3" aria-label="All sections">
+          <nav
+            className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3"
+            aria-label="All sections"
+          >
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               const Icon = item.icon;
@@ -69,6 +87,29 @@ export function MobileNavDrawer() {
               );
             })}
           </nav>
+
+          {session?.user ? (
+            <div className="mt-auto border-t px-2 py-3">
+              <div className="px-3 pb-2">
+                {session.user.name ? (
+                  <p className="truncate text-sm font-medium">
+                    {session.user.name}
+                  </p>
+                ) : null}
+                <p className="truncate text-xs text-muted-foreground">
+                  {session.user.email}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={signOut}
+              >
+                <LogOut className="size-5 shrink-0" aria-hidden="true" />
+                Sign out
+              </Button>
+            </div>
+          ) : null}
         </SheetContent>
       </Sheet>
     </>

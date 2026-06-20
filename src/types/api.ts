@@ -50,6 +50,11 @@ export type AnalyticsChart =
   | "cashflow"
   | "top_categories";
 
-export type ReportPeriod = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+export type ReportPeriod =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
 
 export type AnalyticsRange = "3m" | "6m" | "12m" | "ytd" | "fy" | "all";

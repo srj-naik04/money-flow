@@ -31,7 +31,8 @@ export function Money({
     <span
       className={cn(
         "tabular-nums",
-        colorBySign && (negative ? "text-negative" : paise > 0 ? "text-positive" : ""),
+        colorBySign &&
+          (negative ? "text-negative" : paise > 0 ? "text-positive" : ""),
         className,
       )}
     >
@@ -80,7 +81,9 @@ export function TrendBadge({
     <span
       className={cn(
         "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums",
-        good ? "bg-positive-muted text-positive" : "bg-negative-muted text-negative",
+        good
+          ? "bg-positive-muted text-positive"
+          : "bg-negative-muted text-negative",
         className,
       )}
     >

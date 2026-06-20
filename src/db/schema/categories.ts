@@ -20,6 +20,8 @@ export const categories = pgTable(
   "categories",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner (Neon Auth user id). Nullable until backfill, then set NOT NULL. */
+    userId: text("user_id"),
     name: text("name").notNull(),
     kind: categoryKindEnum("kind").notNull(),
     icon: text("icon"),
@@ -28,10 +30,17 @@ export const categories = pgTable(
     isCustom: boolean("is_custom").notNull().default(false),
     isArchived: boolean("is_archived").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
-    uniqueIndex("categories_name_kind_uq").on(sql`lower(${t.name})`, t.kind),
+    index("categories_user_idx").on(t.userId),
+    uniqueIndex("categories_user_name_kind_uq").on(
+      t.userId,
+      sql`lower(${t.name})`,
+      t.kind,
+    ),
     index("categories_kind_idx").on(t.kind),
   ],
 );

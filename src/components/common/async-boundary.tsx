@@ -44,7 +44,8 @@ export function AsyncBoundary<T>({
   children: (data: T) => ReactNode;
 }) {
   if (data === undefined) {
-    if (isError) return <ErrorState message={messageOf(error)} onRetry={onRetry} />;
+    if (isError)
+      return <ErrorState message={messageOf(error)} onRetry={onRetry} />;
     return <>{loading ?? <DefaultLoading />}</>;
   }
   if (isEmpty && empty && isEmpty(data)) return <>{empty}</>;

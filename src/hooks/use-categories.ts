@@ -4,7 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { qk } from "@/lib/query-keys";
 import type { CategoryDTO } from "@/types/domain";
-import type { CategoryCreateInput, CategoryUpdateInput } from "@/lib/schemas/category";
+import type {
+  CategoryCreateInput,
+  CategoryUpdateInput,
+} from "@/lib/schemas/category";
 
 export function useCategories() {
   return useQuery({
@@ -17,7 +20,8 @@ export function useCategories() {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CategoryCreateInput) => api.post<CategoryDTO>("/api/categories", input),
+    mutationFn: (input: CategoryCreateInput) =>
+      api.post<CategoryDTO>("/api/categories", input),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.categories() }),
   });
 }
@@ -34,7 +38,8 @@ export function useUpdateCategory() {
 export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.del<{ id: string }>(`/api/categories/${id}`),
+    mutationFn: (id: string) =>
+      api.del<{ id: string }>(`/api/categories/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

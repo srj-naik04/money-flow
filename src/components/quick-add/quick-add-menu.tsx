@@ -11,6 +11,7 @@ import {
   Landmark,
   PiggyBank,
   Target,
+  Vault,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ const ITEMS: { type: QuickAddType; label: string; icon: typeof Plus }[] = [
   { type: "salary", label: "Salary / Income", icon: Wallet },
   { type: "emi", label: "Loan / EMI", icon: Landmark },
   { type: "sip", label: "SIP", icon: PiggyBank },
+  { type: "deposit", label: "FD / RD", icon: Vault },
   { type: "goal", label: "Savings Goal", icon: Target },
 ];
 
@@ -46,7 +48,10 @@ export function QuickAddMenu() {
         {ITEMS.map((it) => {
           const Icon = it.icon;
           return (
-            <DropdownMenuItem key={it.type} onClick={() => openQuickAdd(it.type)}>
+            <DropdownMenuItem
+              key={it.type}
+              onClick={() => openQuickAdd(it.type)}
+            >
               <Icon className="size-4" />
               {it.label}
             </DropdownMenuItem>

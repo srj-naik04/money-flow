@@ -12,7 +12,9 @@ export function useCountUp(target: number, duration = 600): number {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduce = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     const from = fromRef.current;
     if (reduce || from === target) {
       fromRef.current = target;

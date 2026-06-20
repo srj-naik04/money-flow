@@ -28,7 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RecurringFormModal } from "./recurring-form-modal";
-import { useRecurring, useMarkRecurringDone, useDeleteRecurring } from "@/hooks/use-recurring";
+import {
+  useRecurring,
+  useMarkRecurringDone,
+  useDeleteRecurring,
+} from "@/hooks/use-recurring";
 import { formatDateShort } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import type { RecurringTemplate } from "@/lib/constants";
@@ -75,7 +79,8 @@ const CONFIG: Record<
     markToast: "EMI paid — outstanding updated",
     icon: Landmark,
     emptyTitle: "No loans or EMIs",
-    emptyDesc: "Track a loan — or split a credit-card bill into monthly installments.",
+    emptyDesc:
+      "Track a loan — or split a credit-card bill into monthly installments.",
     monthlyLabel: "Monthly EMIs",
   },
   sip: {
@@ -106,10 +111,19 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
   const [editing, setEditing] = useState<RecurringItemDTO | undefined>();
   const [deleting, setDeleting] = useState<RecurringItemDTO | undefined>();
 
-  const active = useMemo(() => (data ?? []).filter((r) => r.status === "active"), [data]);
-  const inactive = useMemo(() => (data ?? []).filter((r) => r.status !== "active"), [data]);
+  const active = useMemo(
+    () => (data ?? []).filter((r) => r.status === "active"),
+    [data],
+  );
+  const inactive = useMemo(
+    () => (data ?? []).filter((r) => r.status !== "active"),
+    [data],
+  );
   const monthlyTotal = active.reduce((s, r) => s + r.monthlyEquivalent, 0);
-  const outstanding = active.reduce((s, r) => s + (r.outstandingAmount ?? 0), 0);
+  const outstanding = active.reduce(
+    (s, r) => s + (r.outstandingAmount ?? 0),
+    0,
+  );
 
   const groups = useMemo(() => {
     const order: RenewalBucket[] = ["overdue", "next7", "next30", "later"];
@@ -120,7 +134,9 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
       later: [],
     };
     for (const r of active) byBucket[r.bucket].push(r);
-    return order.filter((b) => byBucket[b].length > 0).map((b) => ({ bucket: b, items: byBucket[b] }));
+    return order
+      .filter((b) => byBucket[b].length > 0)
+      .map((b) => ({ bucket: b, items: byBucket[b] }));
   }, [active]);
 
   const Icon = cfg.icon;
@@ -157,13 +173,18 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
           )}
         </div>
         <p className="truncate text-xs text-muted-foreground">
-          {[r.projectName, r.categoryName, r.investmentName].filter(Boolean).join(" · ") || "—"} ·{" "}
-          {formatDateShort(r.nextDue)}
+          {[r.projectName, r.categoryName, r.investmentName]
+            .filter(Boolean)
+            .join(" · ") || "—"}{" "}
+          · {formatDateShort(r.nextDue)}
         </p>
         {template === "emi" && r.totalInstallments ? (
           <div className="mt-1.5 flex items-center gap-2">
             <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-primary" style={{ width: `${r.payoffPct ?? 0}%` }} />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${r.payoffPct ?? 0}%` }}
+              />
             </div>
             <span className="text-[10px] text-muted-foreground tabular-nums">
               {r.installmentsPaid}/{r.totalInstallments} ·{" "}
@@ -175,7 +196,8 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
       <div className="shrink-0 text-right">
         <Money paise={r.amount} className="text-sm font-medium" />
         <p className="text-xs text-muted-foreground">
-          <Money paise={r.monthlyEquivalent} compact />/mo
+          <Money paise={r.monthlyEquivalent} compact />
+          /mo
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -186,7 +208,9 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
             className="hidden gap-1 sm:inline-flex"
             disabled={markDone.isPending}
             onClick={() =>
-              markDone.mutate(r.id, { onSuccess: () => toast.success(cfg.markToast) })
+              markDone.mutate(r.id, {
+                onSuccess: () => toast.success(cfg.markToast),
+              })
             }
           >
             <Check className="size-4" /> {cfg.markLabel}
@@ -194,7 +218,9 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
         ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon-sm" aria-label="Actions" />}
+            render={
+              <Button variant="ghost" size="icon-sm" aria-label="Actions" />
+            }
           >
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
@@ -203,7 +229,9 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
               <DropdownMenuItem
                 className="sm:hidden"
                 onClick={() =>
-                  markDone.mutate(r.id, { onSuccess: () => toast.success(cfg.markToast) })
+                  markDone.mutate(r.id, {
+                    onSuccess: () => toast.success(cfg.markToast),
+                  })
                 }
               >
                 <Check className="size-4" /> {cfg.markLabel}
@@ -217,7 +245,10 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
             >
               <Pencil className="size-4" /> Edit
             </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onClick={() => setDeleting(r)}>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => setDeleting(r)}
+            >
               <Trash2 className="size-4" /> Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -230,9 +261,17 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div className="grid flex-1 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <StatCard label={cfg.monthlyLabel} value={<Money paise={monthlyTotal} />} icon={cfg.icon} />
+          <StatCard
+            label={cfg.monthlyLabel}
+            value={<Money paise={monthlyTotal} />}
+            icon={cfg.icon}
+          />
           {template === "emi" ? (
-            <StatCard label="Outstanding" value={<Money paise={outstanding} />} icon={Landmark} />
+            <StatCard
+              label="Outstanding"
+              value={<Money paise={outstanding} />}
+              icon={Landmark}
+            />
           ) : null}
           <StatCard label="Active" value={active.length} />
         </div>
@@ -249,22 +288,34 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
       </div>
 
       {isError && !data ? (
-        <ErrorState message={(error as Error)?.message} onRetry={() => void refetch()} />
+        <ErrorState
+          message={(error as Error)?.message}
+          onRetry={() => void refetch()}
+        />
       ) : !data && isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl border bg-muted/40" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-xl border bg-muted/40"
+            />
           ))}
         </div>
       ) : (data ?? []).length === 0 ? (
-        <EmptyState icon={Icon} title={cfg.emptyTitle} description={cfg.emptyDesc} />
+        <EmptyState
+          icon={Icon}
+          title={cfg.emptyTitle}
+          description={cfg.emptyDesc}
+        />
       ) : (
         <div className="space-y-6">
           {groups.map((g) => (
             <section key={g.bucket} className="space-y-2">
               <h2 className="text-sm font-medium text-muted-foreground">
                 {bucketLabel[g.bucket]}{" "}
-                <span className="text-muted-foreground/60">({g.items.length})</span>
+                <span className="text-muted-foreground/60">
+                  ({g.items.length})
+                </span>
               </h2>
               <div className="overflow-hidden rounded-xl border bg-card">
                 {g.items.map((r) => renderRow(r))}
@@ -275,7 +326,9 @@ export function RecurringPanel({ template }: { template: RecurringTemplate }) {
             <section className="space-y-2">
               <h2 className="text-sm font-medium text-muted-foreground">
                 Completed &amp; paused{" "}
-                <span className="text-muted-foreground/60">({inactive.length})</span>
+                <span className="text-muted-foreground/60">
+                  ({inactive.length})
+                </span>
               </h2>
               <div className="overflow-hidden rounded-xl border bg-card">
                 {inactive.map((r) => renderRow(r, true))}

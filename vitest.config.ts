@@ -12,6 +12,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Server modules are safe to exercise in the Node test env — stub the guard.
+      "server-only": fileURLToPath(
+        new URL("./tests/stubs/empty.ts", import.meta.url),
+      ),
     },
   },
 });

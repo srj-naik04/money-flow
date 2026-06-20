@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Banknote, Receipt, TrendingUp, Landmark, Flame, CreditCard } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  Receipt,
+  TrendingUp,
+  Landmark,
+  Flame,
+  CreditCard,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { StatCard } from "@/components/common/stat-card";
@@ -29,12 +37,19 @@ export default function ProjectDetailPage() {
 
   const s = stats.data;
   const recent = txns.data?.pages[0]?.items.slice(0, 8) ?? [];
-  const projSubs = (subs.data ?? []).filter((x) => x.status === "active").slice(0, 6);
+  const projSubs = (subs.data ?? [])
+    .filter((x) => x.status === "active")
+    .slice(0, 6);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" render={<Link href="/projects" />} aria-label="Back to projects">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          render={<Link href="/projects" />}
+          aria-label="Back to projects"
+        >
           <ArrowLeft className="size-4" />
         </Button>
         <PageHeader
@@ -44,12 +59,42 @@ export default function ProjectDetailPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Income" value={<Money paise={s?.totalIncome ?? 0} />} icon={Banknote} loading={!s} />
-        <StatCard label="Expenses" value={<Money paise={s?.totalExpense ?? 0} />} icon={Receipt} loading={!s} />
-        <StatCard label="Net Profit" value={<Money paise={s?.netProfit ?? 0} colorBySign />} icon={TrendingUp} loading={!s} />
-        <StatCard label="GST Paid" value={<Money paise={s?.totalGstPaid ?? 0} />} icon={Landmark} loading={!s} />
-        <StatCard label="Monthly Burn" value={<Money paise={s?.monthlyBurnRate ?? 0} />} icon={Flame} loading={!s} />
-        <StatCard label="Recurring / mo" value={<Money paise={s?.recurringSubscriptionCost ?? 0} />} icon={CreditCard} loading={!s} />
+        <StatCard
+          label="Income"
+          value={<Money paise={s?.totalIncome ?? 0} />}
+          icon={Banknote}
+          loading={!s}
+        />
+        <StatCard
+          label="Expenses"
+          value={<Money paise={s?.totalExpense ?? 0} />}
+          icon={Receipt}
+          loading={!s}
+        />
+        <StatCard
+          label="Net Profit"
+          value={<Money paise={s?.netProfit ?? 0} colorBySign />}
+          icon={TrendingUp}
+          loading={!s}
+        />
+        <StatCard
+          label="GST Paid"
+          value={<Money paise={s?.totalGstPaid ?? 0} />}
+          icon={Landmark}
+          loading={!s}
+        />
+        <StatCard
+          label="Monthly Burn"
+          value={<Money paise={s?.monthlyBurnRate ?? 0} />}
+          icon={Flame}
+          loading={!s}
+        />
+        <StatCard
+          label="Recurring / mo"
+          value={<Money paise={s?.recurringSubscriptionCost ?? 0} />}
+          icon={CreditCard}
+          loading={!s}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -68,9 +113,15 @@ export default function ProjectDetailPage() {
                       <p className="truncate text-sm font-medium">
                         {t.categoryName ?? t.vendor ?? t.type}
                       </p>
-                      <p className="text-xs text-muted-foreground">{formatDateShort(t.occurredAt)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateShort(t.occurredAt)}
+                      </p>
                     </div>
-                    <Money paise={t.signedAmount} className="text-sm font-medium" colorBySign />
+                    <Money
+                      paise={t.signedAmount}
+                      className="text-sm font-medium"
+                      colorBySign
+                    />
                   </li>
                 ))}
               </ul>
@@ -91,8 +142,12 @@ export default function ProjectDetailPage() {
                   <li key={x.id} className="flex items-center gap-3 py-2.5">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        {x.projectColor ? <ProjectDot color={x.projectColor} /> : null}
-                        <span className="truncate text-sm font-medium">{x.name}</span>
+                        {x.projectColor ? (
+                          <ProjectDot color={x.projectColor} />
+                        ) : null}
+                        <span className="truncate text-sm font-medium">
+                          {x.name}
+                        </span>
                         <Badge variant="secondary" className="text-[10px]">
                           {x.billingCycle.replace("_", "-")}
                         </Badge>

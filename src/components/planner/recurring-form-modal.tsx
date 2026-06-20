@@ -36,7 +36,11 @@ export function RecurringFormModal({
       description={item ? undefined : DESC[template]}
     >
       {open ? (
-        <RecurringForm template={template} item={item} onDone={() => onOpenChange(false)} />
+        <RecurringForm
+          template={template}
+          item={item}
+          onDone={() => onOpenChange(false)}
+        />
       ) : null}
     </FormModal>
   );

@@ -11,8 +11,8 @@ export default function OfflinePage() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">You&rsquo;re offline</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          MoneyFlow needs a connection to load fresh data. Recently viewed pages still work — your
-          changes will sync once you&rsquo;re back online.
+          MoneyFlow needs a connection to load fresh data. Recently viewed pages
+          still work — your changes will sync once you&rsquo;re back online.
         </p>
       </div>
     </div>

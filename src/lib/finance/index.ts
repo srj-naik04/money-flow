@@ -5,3 +5,4 @@ export * from "./large-payment";
 export * from "./renewals";
 export * from "./recurring";
 export * from "./goals";
+export * from "./deposits";

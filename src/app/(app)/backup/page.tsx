@@ -2,7 +2,12 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Download, Upload, FileSpreadsheet, DatabaseBackup } from "lucide-react";
+import {
+  Download,
+  Upload,
+  FileSpreadsheet,
+  DatabaseBackup,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +31,11 @@ export default function BackupPage() {
       const res = await fetch("/api/backup/export");
       if (!res.ok) throw new Error("Export failed");
       const text = await res.text();
-      downloadText(`moneyflow-backup-${todayISO()}.json`, text, "application/json");
+      downloadText(
+        `moneyflow-backup-${todayISO()}.json`,
+        text,
+        "application/json",
+      );
       toast.success("Backup downloaded");
     } catch {
       toast.error("Export failed");
@@ -75,13 +84,18 @@ export default function BackupPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Download a full JSON snapshot you can restore later, or a CSV of all transactions.
+              Download a full JSON snapshot you can restore later, or a CSV of
+              all transactions.
             </p>
             <div className="flex flex-col gap-2">
               <Button onClick={handleExportJson} className="gap-2">
                 <DatabaseBackup className="size-4" /> Export full backup (JSON)
               </Button>
-              <Button variant="outline" onClick={handleExportCsv} className="gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExportCsv}
+                className="gap-2"
+              >
                 <FileSpreadsheet className="size-4" /> Export transactions (CSV)
               </Button>
             </div>
@@ -103,7 +117,8 @@ export default function BackupPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Import a JSON backup. This <span className="font-medium text-foreground">replaces</span> all
+              Import a JSON backup. This{" "}
+              <span className="font-medium text-foreground">replaces</span> all
               current data.
             </p>
             <input
@@ -113,7 +128,11 @@ export default function BackupPage() {
               className="hidden"
               onChange={onFilePicked}
             />
-            <Button variant="outline" onClick={() => fileRef.current?.click()} className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => fileRef.current?.click()}
+              className="gap-2"
+            >
               <Upload className="size-4" /> Choose backup file
             </Button>
           </CardContent>
@@ -132,18 +151,16 @@ export default function BackupPage() {
         destructive
         loading={importBackup.isPending}
         onConfirm={() =>
-          importBackup.mutate(
-            pendingSnapshot,
-            {
-              onSuccess: (r) => {
-                const total = Object.values(r.counts).reduce((a, b) => a + b, 0);
-                toast.success(`Restored ${total} records`);
-                setConfirmOpen(false);
-                setPendingSnapshot(null);
-              },
-              onError: (e) => toast.error(e instanceof Error ? e.message : "Import failed"),
+          importBackup.mutate(pendingSnapshot, {
+            onSuccess: (r) => {
+              const total = Object.values(r.counts).reduce((a, b) => a + b, 0);
+              toast.success(`Restored ${total} records`);
+              setConfirmOpen(false);
+              setPendingSnapshot(null);
             },
-          )
+            onError: (e) =>
+              toast.error(e instanceof Error ? e.message : "Import failed"),
+          })
         }
       />
     </div>

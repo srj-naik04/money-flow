@@ -1,8 +1,18 @@
-import { and, eq, gte, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  isNull,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { transactions, categories, projects } from "@/db/schema";
 import { archivedProjectIds } from "@/server/repositories/projects.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import { savingsRatePct } from "@/lib/finance";
 import {
   todayISO,
@@ -26,8 +36,18 @@ export type ReportRow = {
   net: number;
   savingsRate: number;
 };
-export type NamedAmount = { name: string; color: string | null; amount: number };
-export type ProjectPerf = { name: string; color: string; income: number; expense: number; net: number };
+export type NamedAmount = {
+  name: string;
+  color: string | null;
+  amount: number;
+};
+export type ProjectPerf = {
+  name: string;
+  color: string;
+  income: number;
+  expense: number;
+  net: number;
+};
 export type ReportBundle = {
   period: ReportPeriod;
   from: string;
@@ -67,7 +87,20 @@ function windowFrom(period: ReportPeriod, today: string): string {
 
 function labelFor(period: ReportPeriod, bucket: string): string {
   const d = fromISODate(bucket);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   switch (period) {
     case "daily":
       return `${String(d.getDate()).padStart(2, "0")} ${months[d.getMonth()]}`;
@@ -84,21 +117,32 @@ function labelFor(period: ReportPeriod, bucket: string): string {
   }
 }
 
-async function txConds(projectId: string, includeArchived: boolean): Promise<SQL[]> {
-  const conds: SQL[] = [];
+async function txConds(
+  projectId: string,
+  includeArchived: boolean,
+): Promise<SQL[]> {
+  // Tenant scope first — every report query funnels its base filter through here.
+  const conds: SQL[] = [eq(transactions.userId, getCurrentUserId())];
   if (projectId && projectId !== "all") {
     conds.push(eq(transactions.projectId, projectId));
   } else if (!includeArchived) {
     const archived = await archivedProjectIds();
     if (archived.length) {
-      const c = or(isNull(transactions.projectId), notInArray(transactions.projectId, archived));
+      const c = or(
+        isNull(transactions.projectId),
+        notInArray(transactions.projectId, archived),
+      );
       if (c) conds.push(c);
     }
   }
   return conds;
 }
 
-export async function getReport(projectId = "all", period: ReportPeriod = "monthly"): Promise<ReportBundle> {
+export async function getReport(
+  projectId = "all",
+  period: ReportPeriod = "monthly",
+): Promise<ReportBundle> {
+  const userId = getCurrentUserId();
   const settings = await getSettingsRow();
   const today = todayISO();
   const from = windowFrom(period, today);
@@ -108,10 +152,20 @@ export async function getReport(projectId = "all", period: ReportPeriod = "month
   const bucketed = await db
     .select({
       bucket: sql<string>`to_char(date_trunc(${UNIT[period]}, ${transactions.occurredAt}), 'YYYY-MM-DD')`,
-      income: sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      gst: sql<number>`coalesce(sum(${transactions.gstAmount}),0)`.mapWith(Number),
-      net: sql<number>`coalesce(sum(${transactions.signedAmount}),0)`.mapWith(Number),
+      income:
+        sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      expense:
+        sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      gst: sql<number>`coalesce(sum(${transactions.gstAmount}),0)`.mapWith(
+        Number,
+      ),
+      net: sql<number>`coalesce(sum(${transactions.signedAmount}),0)`.mapWith(
+        Number,
+      ),
     })
     .from(transactions)
     .where(where)
@@ -143,38 +197,68 @@ export async function getReport(projectId = "all", period: ReportPeriod = "month
       .select({
         name: sql<string>`coalesce(${categories.name}, 'Uncategorized')`,
         color: categories.color,
-        amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number),
+        amount:
+          sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(
+            Number,
+          ),
       })
       .from(transactions)
-      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .leftJoin(
+        categories,
+        and(
+          eq(transactions.categoryId, categories.id),
+          eq(categories.userId, userId),
+        ),
+      )
       .where(and(where, eq(transactions.type, type)))
       .groupBy(categories.name, categories.color)
       .orderBy(sql`3 desc`)
       .limit(8);
 
-  const [topExpenseCategories, topIncomeCategories] = await Promise.all([cat("expense"), cat("income")]);
+  const [topExpenseCategories, topIncomeCategories] = await Promise.all([
+    cat("expense"),
+    cat("income"),
+  ]);
 
   const projRows = await db
     .select({
       name: sql<string>`coalesce(${projects.name}, 'Unassigned')`,
       color: sql<string>`coalesce(${projects.color}, '#94a3b8')`,
-      income: sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(Number),
+      income:
+        sql<number>`coalesce(sum(case when ${transactions.type}='income' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
+      expense:
+        sql<number>`coalesce(sum(case when ${transactions.type}='expense' then ${transactions.grossAmount} else 0 end),0)`.mapWith(
+          Number,
+        ),
     })
     .from(transactions)
-    .leftJoin(projects, eq(transactions.projectId, projects.id))
+    .leftJoin(
+      projects,
+      and(eq(transactions.projectId, projects.id), eq(projects.userId, userId)),
+    )
     .where(where)
     .groupBy(projects.name, projects.color);
 
   const projectPerformance: ProjectPerf[] = projRows
-    .map((p) => ({ name: p.name, color: p.color, income: p.income, expense: p.expense, net: p.income - p.expense }))
+    .map((p) => ({
+      name: p.name,
+      color: p.color,
+      income: p.income,
+      expense: p.expense,
+      net: p.income - p.expense,
+    }))
     .sort((a, b) => b.net - a.net);
 
   return {
     period,
     from,
     rows,
-    totals: { ...totals, savingsRate: savingsRatePct(totals.income, totals.expense) },
+    totals: {
+      ...totals,
+      savingsRate: savingsRatePct(totals.income, totals.expense),
+    },
     topExpenseCategories,
     topIncomeCategories,
     projectPerformance,

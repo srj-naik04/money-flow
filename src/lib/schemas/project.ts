@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { zId, zHexColor, zOptionalText, zRequiredText, zProjectStatus } from "./shared";
+import {
+  zId,
+  zHexColor,
+  zOptionalText,
+  zRequiredText,
+  zProjectStatus,
+} from "./shared";
 
 export const projectCreateSchema = z.object({
   name: zRequiredText("Project name", 80),

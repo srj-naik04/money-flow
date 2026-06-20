@@ -11,8 +11,16 @@ import { InsightsStrip } from "@/components/insights/insights-strip";
 import { ErrorState } from "@/components/common/error-state";
 
 const ProfitTrendCard = dynamic(
-  () => import("@/components/dashboard/profit-trend-card").then((m) => m.ProfitTrendCard),
-  { ssr: false, loading: () => <div className="h-full min-h-[340px] animate-pulse rounded-xl border bg-muted/40" /> },
+  () =>
+    import("@/components/dashboard/profit-trend-card").then(
+      (m) => m.ProfitTrendCard,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full min-h-[340px] animate-pulse rounded-xl border bg-muted/40" />
+    ),
+  },
 );
 
 export default function DashboardPage() {
@@ -39,7 +47,10 @@ export default function DashboardPage() {
       ) : (
         <div className="space-y-6">
           <InsightsStrip />
-          <KpiGrid stats={stats.data} loading={stats.isLoading && !stats.data} />
+          <KpiGrid
+            stats={stats.data}
+            loading={stats.isLoading && !stats.data}
+          />
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <ProfitTrendCard />

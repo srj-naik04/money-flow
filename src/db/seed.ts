@@ -3,6 +3,7 @@
  * db instance so they can be reused by both the CLI (scripts/seed.ts) and the
  * /api/backup/reset route. Money is computed in paise; GST always reconciles.
  */
+import { eq } from "drizzle-orm";
 import type { Database } from "./index";
 import * as s from "./schema";
 import { computeGst, toPaise } from "../lib/money";
@@ -15,19 +16,27 @@ import {
   type AccountType,
 } from "../lib/constants";
 
-/** Delete all rows in FK-safe order. */
-export async function clearDatabase(db: Database): Promise<void> {
-  await db.delete(s.goalContributions);
-  await db.delete(s.goals);
-  await db.delete(s.recurringItems);
-  await db.delete(s.investmentValueHistory);
-  await db.delete(s.transactions);
-  await db.delete(s.subscriptions);
-  await db.delete(s.investments);
-  await db.delete(s.settings);
-  await db.delete(s.categories);
-  await db.delete(s.accounts);
-  await db.delete(s.projects);
+/** Delete a single user's rows in FK-safe order (tenant-scoped). */
+export async function clearDatabase(
+  db: Database,
+  userId: string,
+): Promise<void> {
+  await db
+    .delete(s.goalContributions)
+    .where(eq(s.goalContributions.userId, userId));
+  await db.delete(s.goals).where(eq(s.goals.userId, userId));
+  await db.delete(s.recurringItems).where(eq(s.recurringItems.userId, userId));
+  await db.delete(s.deposits).where(eq(s.deposits.userId, userId));
+  await db
+    .delete(s.investmentValueHistory)
+    .where(eq(s.investmentValueHistory.userId, userId));
+  await db.delete(s.transactions).where(eq(s.transactions.userId, userId));
+  await db.delete(s.subscriptions).where(eq(s.subscriptions.userId, userId));
+  await db.delete(s.investments).where(eq(s.investments.userId, userId));
+  await db.delete(s.settings).where(eq(s.settings.userId, userId));
+  await db.delete(s.categories).where(eq(s.categories.userId, userId));
+  await db.delete(s.accounts).where(eq(s.accounts.userId, userId));
+  await db.delete(s.projects).where(eq(s.projects.userId, userId));
 }
 
 function daysAgoISO(today: string, days: number): string {
@@ -47,13 +56,20 @@ type TxSeed = {
   notes?: string;
 };
 
-/** Wipe and insert a realistic sample dataset. */
-export async function seedDatabase(db: Database): Promise<void> {
-  await clearDatabase(db);
+/** Wipe and insert a realistic sample dataset, all owned by `userId`. */
+export async function seedDatabase(
+  db: Database,
+  userId: string,
+): Promise<void> {
+  await clearDatabase(db, userId);
   const today = todayISO();
 
   // ---- Accounts ----
-  const accountRows: { name: string; type: AccountType; openingBalance: number }[] = [
+  const accountRows: {
+    name: string;
+    type: AccountType;
+    openingBalance: number;
+  }[] = [
     { name: "HDFC Bank", type: "bank", openingBalance: toPaise(150000) },
     { name: "Cash", type: "cash", openingBalance: toPaise(5000) },
     { name: "Amazon Pay", type: "wallet", openingBalance: toPaise(2000) },
@@ -61,20 +77,30 @@ export async function seedDatabase(db: Database): Promise<void> {
   ];
   const accounts = await db
     .insert(s.accounts)
-    .values(accountRows.map((a, i) => ({ ...a, sortOrder: i })))
+    .values(accountRows.map((a, i) => ({ ...a, userId, sortOrder: i })))
     .returning({ id: s.accounts.id, name: s.accounts.name });
   const acc = (name: string) => accounts.find((a) => a.name === name)!.id;
 
   // ---- Projects ----
   const projectRows = [
-    { name: "Gym Daddy", slug: "gym-daddy", color: "#10b981", icon: "dumbbell" },
+    {
+      name: "Gym Daddy",
+      slug: "gym-daddy",
+      color: "#10b981",
+      icon: "dumbbell",
+    },
     { name: "AI SaaS", slug: "ai-saas", color: "#6366f1", icon: "sparkles" },
-    { name: "Freelance Client", slug: "freelance-client", color: "#f59e0b", icon: "handshake" },
+    {
+      name: "Freelance Client",
+      slug: "freelance-client",
+      color: "#f59e0b",
+      icon: "handshake",
+    },
     { name: "Personal", slug: "personal", color: "#0ea5e9", icon: "user" },
   ];
   const projects = await db
     .insert(s.projects)
-    .values(projectRows.map((p, i) => ({ ...p, sortOrder: i })))
+    .values(projectRows.map((p, i) => ({ ...p, userId, sortOrder: i })))
     .returning({ id: s.projects.id, name: s.projects.name });
   const proj = (name: string) => projects.find((p) => p.name === name)!.id;
 
@@ -95,14 +121,19 @@ export async function seedDatabase(db: Database): Promise<void> {
   }));
   const categories = await db
     .insert(s.categories)
-    .values([...incomeCats, ...expenseCats])
-    .returning({ id: s.categories.id, name: s.categories.name, kind: s.categories.kind });
+    .values([...incomeCats, ...expenseCats].map((c) => ({ ...c, userId })))
+    .returning({
+      id: s.categories.id,
+      name: s.categories.name,
+      kind: s.categories.kind,
+    });
   const cat = (name: string, kind: "income" | "expense") =>
     categories.find((c) => c.name === name && c.kind === kind)!.id;
 
-  // ---- Settings singleton ----
+  // ---- Settings (one row per user, keyed by userId) ----
   await db.insert(s.settings).values({
-    id: "singleton",
+    id: userId,
+    userId,
     theme: "system",
     defaultProjectId: null,
     fyStartMonth: 4,
@@ -115,60 +146,400 @@ export async function seedDatabase(db: Database): Promise<void> {
   // ---- Transactions ----
   const txSeeds: TxSeed[] = [
     // Income — Freelance Client
-    { type: "income", project: "Freelance Client", category: "Client Payment", account: "HDFC Bank", amount: 45000, vendor: "Acme Corp", daysAgo: 82, notes: "Milestone 1" },
-    { type: "income", project: "Freelance Client", category: "Client Payment", account: "HDFC Bank", amount: 45000, vendor: "Acme Corp", daysAgo: 50, notes: "Milestone 2" },
-    { type: "income", project: "Freelance Client", category: "Client Payment", account: "HDFC Bank", amount: 52000, vendor: "Acme Corp", daysAgo: 18, notes: "Milestone 3" },
+    {
+      type: "income",
+      project: "Freelance Client",
+      category: "Client Payment",
+      account: "HDFC Bank",
+      amount: 45000,
+      vendor: "Acme Corp",
+      daysAgo: 82,
+      notes: "Milestone 1",
+    },
+    {
+      type: "income",
+      project: "Freelance Client",
+      category: "Client Payment",
+      account: "HDFC Bank",
+      amount: 45000,
+      vendor: "Acme Corp",
+      daysAgo: 50,
+      notes: "Milestone 2",
+    },
+    {
+      type: "income",
+      project: "Freelance Client",
+      category: "Client Payment",
+      account: "HDFC Bank",
+      amount: 52000,
+      vendor: "Acme Corp",
+      daysAgo: 18,
+      notes: "Milestone 3",
+    },
     // Income — AI SaaS
-    { type: "income", project: "AI SaaS", category: "SaaS Revenue", account: "HDFC Bank", amount: 28000, vendor: "Stripe payout", daysAgo: 70 },
-    { type: "income", project: "AI SaaS", category: "SaaS Revenue", account: "HDFC Bank", amount: 34500, vendor: "Stripe payout", daysAgo: 40 },
-    { type: "income", project: "AI SaaS", category: "SaaS Revenue", account: "HDFC Bank", amount: 41200, vendor: "Stripe payout", daysAgo: 9 },
-    { type: "income", project: "AI SaaS", category: "Affiliate", account: "Amazon Pay", amount: 3200, vendor: "Affiliate", daysAgo: 22 },
+    {
+      type: "income",
+      project: "AI SaaS",
+      category: "SaaS Revenue",
+      account: "HDFC Bank",
+      amount: 28000,
+      vendor: "Stripe payout",
+      daysAgo: 70,
+    },
+    {
+      type: "income",
+      project: "AI SaaS",
+      category: "SaaS Revenue",
+      account: "HDFC Bank",
+      amount: 34500,
+      vendor: "Stripe payout",
+      daysAgo: 40,
+    },
+    {
+      type: "income",
+      project: "AI SaaS",
+      category: "SaaS Revenue",
+      account: "HDFC Bank",
+      amount: 41200,
+      vendor: "Stripe payout",
+      daysAgo: 9,
+    },
+    {
+      type: "income",
+      project: "AI SaaS",
+      category: "Affiliate",
+      account: "Amazon Pay",
+      amount: 3200,
+      vendor: "Affiliate",
+      daysAgo: 22,
+    },
     // Income — Gym Daddy
-    { type: "income", project: "Gym Daddy", category: "Client Payment", account: "HDFC Bank", amount: 15000, vendor: "Memberships", daysAgo: 60 },
-    { type: "income", project: "Gym Daddy", category: "Client Payment", account: "HDFC Bank", amount: 18500, vendor: "Memberships", daysAgo: 28 },
-    { type: "income", project: "Gym Daddy", category: "Client Payment", account: "Cash", amount: 6000, vendor: "Walk-ins", daysAgo: 6 },
+    {
+      type: "income",
+      project: "Gym Daddy",
+      category: "Client Payment",
+      account: "HDFC Bank",
+      amount: 15000,
+      vendor: "Memberships",
+      daysAgo: 60,
+    },
+    {
+      type: "income",
+      project: "Gym Daddy",
+      category: "Client Payment",
+      account: "HDFC Bank",
+      amount: 18500,
+      vendor: "Memberships",
+      daysAgo: 28,
+    },
+    {
+      type: "income",
+      project: "Gym Daddy",
+      category: "Client Payment",
+      account: "Cash",
+      amount: 6000,
+      vendor: "Walk-ins",
+      daysAgo: 6,
+    },
     // Income — Personal
-    { type: "income", project: "Personal", category: "Salary", account: "HDFC Bank", amount: 60000, vendor: "DayJob Pvt Ltd", daysAgo: 35 },
-    { type: "income", project: "Personal", category: "Interest", account: "HDFC Bank", amount: 1850, vendor: "Savings interest", daysAgo: 30 },
-    { type: "income", project: "Personal", category: "Dividend", account: "HDFC Bank", amount: 2400, vendor: "MF dividend", daysAgo: 12 },
+    {
+      type: "income",
+      project: "Personal",
+      category: "Salary",
+      account: "HDFC Bank",
+      amount: 60000,
+      vendor: "DayJob Pvt Ltd",
+      daysAgo: 35,
+    },
+    {
+      type: "income",
+      project: "Personal",
+      category: "Interest",
+      account: "HDFC Bank",
+      amount: 1850,
+      vendor: "Savings interest",
+      daysAgo: 30,
+    },
+    {
+      type: "income",
+      project: "Personal",
+      category: "Dividend",
+      account: "HDFC Bank",
+      amount: 2400,
+      vendor: "MF dividend",
+      daysAgo: 12,
+    },
 
     // Expenses — AI tools (GST inclusive 18%)
-    { type: "expense", project: "AI SaaS", category: "Claude", account: "HDFC Credit Card", amount: 2360, gst: true, vendor: "Anthropic", daysAgo: 64, notes: "Claude Pro" },
-    { type: "expense", project: "AI SaaS", category: "Claude", account: "HDFC Credit Card", amount: 2360, gst: true, vendor: "Anthropic", daysAgo: 34, notes: "Claude Pro" },
-    { type: "expense", project: "AI SaaS", category: "Claude", account: "HDFC Credit Card", amount: 2360, gst: true, vendor: "Anthropic", daysAgo: 4, notes: "Claude Pro" },
-    { type: "expense", project: "AI SaaS", category: "ChatGPT", account: "HDFC Credit Card", amount: 1888, gst: true, vendor: "OpenAI", daysAgo: 33 },
-    { type: "expense", project: "AI SaaS", category: "Cursor", account: "HDFC Credit Card", amount: 1652, gst: true, vendor: "Cursor", daysAgo: 31 },
-    { type: "expense", project: "AI SaaS", category: "OpenAI API", account: "HDFC Credit Card", amount: 3540, gst: true, vendor: "OpenAI", daysAgo: 20, notes: "API usage" },
-    { type: "expense", project: "AI SaaS", category: "Gemini API", account: "HDFC Credit Card", amount: 1180, gst: true, vendor: "Google", daysAgo: 16 },
-    { type: "expense", project: "AI SaaS", category: "Vercel", account: "HDFC Credit Card", amount: 1888, gst: true, vendor: "Vercel", daysAgo: 27 },
-    { type: "expense", project: "AI SaaS", category: "Railway", account: "HDFC Credit Card", amount: 944, gst: true, vendor: "Railway", daysAgo: 26 },
-    { type: "expense", project: "AI SaaS", category: "DigitalOcean", account: "HDFC Credit Card", amount: 944, gst: true, vendor: "DigitalOcean", daysAgo: 25 },
-    { type: "expense", project: "AI SaaS", category: "Cloudflare", account: "HDFC Credit Card", amount: 826, gst: true, vendor: "Cloudflare", daysAgo: 24 },
-    { type: "expense", project: "AI SaaS", category: "Domains", account: "HDFC Credit Card", amount: 1180, gst: true, vendor: "Namecheap", daysAgo: 55, notes: "Domain renewal" },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Claude",
+      account: "HDFC Credit Card",
+      amount: 2360,
+      gst: true,
+      vendor: "Anthropic",
+      daysAgo: 64,
+      notes: "Claude Pro",
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Claude",
+      account: "HDFC Credit Card",
+      amount: 2360,
+      gst: true,
+      vendor: "Anthropic",
+      daysAgo: 34,
+      notes: "Claude Pro",
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Claude",
+      account: "HDFC Credit Card",
+      amount: 2360,
+      gst: true,
+      vendor: "Anthropic",
+      daysAgo: 4,
+      notes: "Claude Pro",
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "ChatGPT",
+      account: "HDFC Credit Card",
+      amount: 1888,
+      gst: true,
+      vendor: "OpenAI",
+      daysAgo: 33,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Cursor",
+      account: "HDFC Credit Card",
+      amount: 1652,
+      gst: true,
+      vendor: "Cursor",
+      daysAgo: 31,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "OpenAI API",
+      account: "HDFC Credit Card",
+      amount: 3540,
+      gst: true,
+      vendor: "OpenAI",
+      daysAgo: 20,
+      notes: "API usage",
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Gemini API",
+      account: "HDFC Credit Card",
+      amount: 1180,
+      gst: true,
+      vendor: "Google",
+      daysAgo: 16,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Vercel",
+      account: "HDFC Credit Card",
+      amount: 1888,
+      gst: true,
+      vendor: "Vercel",
+      daysAgo: 27,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Railway",
+      account: "HDFC Credit Card",
+      amount: 944,
+      gst: true,
+      vendor: "Railway",
+      daysAgo: 26,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "DigitalOcean",
+      account: "HDFC Credit Card",
+      amount: 944,
+      gst: true,
+      vendor: "DigitalOcean",
+      daysAgo: 25,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Cloudflare",
+      account: "HDFC Credit Card",
+      amount: 826,
+      gst: true,
+      vendor: "Cloudflare",
+      daysAgo: 24,
+    },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Domains",
+      account: "HDFC Credit Card",
+      amount: 1180,
+      gst: true,
+      vendor: "Namecheap",
+      daysAgo: 55,
+      notes: "Domain renewal",
+    },
     // Expenses — Marketing
-    { type: "expense", project: "AI SaaS", category: "Ads", account: "HDFC Credit Card", amount: 8500, gst: true, vendor: "Google Ads", daysAgo: 19 },
-    { type: "expense", project: "Gym Daddy", category: "Marketing", account: "HDFC Bank", amount: 5000, gst: true, vendor: "Instagram", daysAgo: 21 },
+    {
+      type: "expense",
+      project: "AI SaaS",
+      category: "Ads",
+      account: "HDFC Credit Card",
+      amount: 8500,
+      gst: true,
+      vendor: "Google Ads",
+      daysAgo: 19,
+    },
+    {
+      type: "expense",
+      project: "Gym Daddy",
+      category: "Marketing",
+      account: "HDFC Bank",
+      amount: 5000,
+      gst: true,
+      vendor: "Instagram",
+      daysAgo: 21,
+    },
     // Expenses — Gym Daddy
-    { type: "expense", project: "Gym Daddy", category: "Gym", account: "HDFC Bank", amount: 23600, gst: true, vendor: "Equipment Co", daysAgo: 58, notes: "New dumbbells" },
-    { type: "expense", project: "Gym Daddy", category: "Gym", account: "Amazon Pay", amount: 4720, gst: true, vendor: "Supplements", daysAgo: 15 },
-    { type: "expense", project: "Gym Daddy", category: "Misc", account: "Cash", amount: 1200, vendor: "Cleaning", daysAgo: 8 },
+    {
+      type: "expense",
+      project: "Gym Daddy",
+      category: "Gym",
+      account: "HDFC Bank",
+      amount: 23600,
+      gst: true,
+      vendor: "Equipment Co",
+      daysAgo: 58,
+      notes: "New dumbbells",
+    },
+    {
+      type: "expense",
+      project: "Gym Daddy",
+      category: "Gym",
+      account: "Amazon Pay",
+      amount: 4720,
+      gst: true,
+      vendor: "Supplements",
+      daysAgo: 15,
+    },
+    {
+      type: "expense",
+      project: "Gym Daddy",
+      category: "Misc",
+      account: "Cash",
+      amount: 1200,
+      vendor: "Cleaning",
+      daysAgo: 8,
+    },
     // Expenses — Personal lifestyle
-    { type: "expense", project: "Personal", category: "Food", account: "Amazon Pay", amount: 1850, vendor: "Swiggy", daysAgo: 3 },
-    { type: "expense", project: "Personal", category: "Food", account: "Amazon Pay", amount: 2300, vendor: "Zomato", daysAgo: 11 },
-    { type: "expense", project: "Personal", category: "Fuel", account: "HDFC Credit Card", amount: 3000, vendor: "Indian Oil", daysAgo: 13 },
-    { type: "expense", project: "Personal", category: "Shopping", account: "HDFC Credit Card", amount: 6499, gst: true, vendor: "Amazon", daysAgo: 17, notes: "Headphones" },
-    { type: "expense", project: "Personal", category: "Travel", account: "HDFC Credit Card", amount: 12500, gst: true, vendor: "MakeMyTrip", daysAgo: 45, notes: "Flight" },
-    { type: "expense", project: "Personal", category: "Fuel", account: "HDFC Credit Card", amount: 2800, vendor: "HP Petrol", daysAgo: 2 },
-    { type: "expense", project: "Personal", category: "Food", account: "Cash", amount: 650, vendor: "Cafe", daysAgo: 1 },
-    { type: "expense", project: "Personal", category: "Shopping", account: "HDFC Credit Card", amount: 3540, gst: true, vendor: "Myntra", daysAgo: 7 },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Food",
+      account: "Amazon Pay",
+      amount: 1850,
+      vendor: "Swiggy",
+      daysAgo: 3,
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Food",
+      account: "Amazon Pay",
+      amount: 2300,
+      vendor: "Zomato",
+      daysAgo: 11,
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Fuel",
+      account: "HDFC Credit Card",
+      amount: 3000,
+      vendor: "Indian Oil",
+      daysAgo: 13,
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Shopping",
+      account: "HDFC Credit Card",
+      amount: 6499,
+      gst: true,
+      vendor: "Amazon",
+      daysAgo: 17,
+      notes: "Headphones",
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Travel",
+      account: "HDFC Credit Card",
+      amount: 12500,
+      gst: true,
+      vendor: "MakeMyTrip",
+      daysAgo: 45,
+      notes: "Flight",
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Fuel",
+      account: "HDFC Credit Card",
+      amount: 2800,
+      vendor: "HP Petrol",
+      daysAgo: 2,
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Food",
+      account: "Cash",
+      amount: 650,
+      vendor: "Cafe",
+      daysAgo: 1,
+    },
+    {
+      type: "expense",
+      project: "Personal",
+      category: "Shopping",
+      account: "HDFC Credit Card",
+      amount: 3540,
+      gst: true,
+      vendor: "Myntra",
+      daysAgo: 7,
+    },
   ];
 
   const txValues = txSeeds.map((t, i) => {
     const rateBps = t.gst ? (t.rateBps ?? 1800) : 0;
     const gross = toPaise(t.amount);
-    const split = computeGst({ amountPaise: gross, rateBps, inclusive: true, gstEnabled: !!t.gst });
+    const split = computeGst({
+      amountPaise: gross,
+      rateBps,
+      inclusive: true,
+      gstEnabled: !!t.gst,
+    });
     const signed = t.type === "income" ? split.gross : -split.gross;
     return {
+      userId,
       type: t.type,
       projectId: proj(t.project),
       categoryId: cat(t.category, t.type),
@@ -198,18 +569,73 @@ export async function seedDatabase(db: Database): Promise<void> {
     dueInDays: number;
     notes?: string;
   }[] = [
-    { name: "Claude Pro", amount: 2360, cycle: "monthly", gst: true, project: "AI SaaS", category: "Claude", dueInDays: 5 },
-    { name: "ChatGPT Plus", amount: 1888, cycle: "monthly", gst: true, project: "Personal", category: "ChatGPT", dueInDays: 2 },
-    { name: "Cursor Pro", amount: 1652, cycle: "monthly", gst: true, project: "AI SaaS", category: "Cursor", dueInDays: 20 },
-    { name: "Vercel Pro", amount: 1888, cycle: "monthly", gst: true, project: "AI SaaS", category: "Vercel", dueInDays: 12 },
-    { name: "DigitalOcean", amount: 944, cycle: "monthly", gst: true, project: "AI SaaS", category: "DigitalOcean", dueInDays: -3, notes: "Overdue" },
-    { name: "Domain (.com)", amount: 1180, cycle: "yearly", gst: true, project: "Personal", category: "Domains", dueInDays: 40 },
+    {
+      name: "Claude Pro",
+      amount: 2360,
+      cycle: "monthly",
+      gst: true,
+      project: "AI SaaS",
+      category: "Claude",
+      dueInDays: 5,
+    },
+    {
+      name: "ChatGPT Plus",
+      amount: 1888,
+      cycle: "monthly",
+      gst: true,
+      project: "Personal",
+      category: "ChatGPT",
+      dueInDays: 2,
+    },
+    {
+      name: "Cursor Pro",
+      amount: 1652,
+      cycle: "monthly",
+      gst: true,
+      project: "AI SaaS",
+      category: "Cursor",
+      dueInDays: 20,
+    },
+    {
+      name: "Vercel Pro",
+      amount: 1888,
+      cycle: "monthly",
+      gst: true,
+      project: "AI SaaS",
+      category: "Vercel",
+      dueInDays: 12,
+    },
+    {
+      name: "DigitalOcean",
+      amount: 944,
+      cycle: "monthly",
+      gst: true,
+      project: "AI SaaS",
+      category: "DigitalOcean",
+      dueInDays: -3,
+      notes: "Overdue",
+    },
+    {
+      name: "Domain (.com)",
+      amount: 1180,
+      cycle: "yearly",
+      gst: true,
+      project: "Personal",
+      category: "Domains",
+      dueInDays: 40,
+    },
   ];
   const subValues = subSeeds.map((sub) => {
     const rateBps = sub.gst ? 1800 : 0;
     const amount = toPaise(sub.amount);
-    const split = computeGst({ amountPaise: amount, rateBps, inclusive: true, gstEnabled: sub.gst });
+    const split = computeGst({
+      amountPaise: amount,
+      rateBps,
+      inclusive: true,
+      gstEnabled: sub.gst,
+    });
     return {
+      userId,
       name: sub.name,
       amount: split.gross,
       baseAmount: split.base,
@@ -280,6 +706,7 @@ export async function seedDatabase(db: Database): Promise<void> {
     const [row] = await db
       .insert(s.investments)
       .values({
+        userId,
         name: inv.name,
         type: inv.type,
         projectId: proj("Personal"),
@@ -291,6 +718,7 @@ export async function seedDatabase(db: Database): Promise<void> {
     investmentIds[inv.name] = row.id;
     await db.insert(s.investmentValueHistory).values(
       inv.history.map((h) => ({
+        userId,
         investmentId: row.id,
         value: toPaise(h.value),
         valuedAt: fromISODate(daysAgoISO(today, h.daysAgo)),
@@ -306,6 +734,7 @@ export async function seedDatabase(db: Database): Promise<void> {
   const sipDue = futureISO(3);
   await db.insert(s.recurringItems).values([
     {
+      userId,
       flow: "income",
       template: "salary",
       name: "Monthly Salary",
@@ -325,6 +754,7 @@ export async function seedDatabase(db: Database): Promise<void> {
       categoryId: cat("Salary", "income"),
     },
     {
+      userId,
       flow: "expense",
       template: "emi",
       name: "Car Loan EMI",
@@ -347,6 +777,7 @@ export async function seedDatabase(db: Database): Promise<void> {
       interestRateBps: 950,
     },
     {
+      userId,
       flow: "investment",
       template: "sip",
       name: "Nifty 50 SIP",
@@ -371,6 +802,7 @@ export async function seedDatabase(db: Database): Promise<void> {
   const [emergency] = await db
     .insert(s.goals)
     .values({
+      userId,
       name: "Emergency Fund",
       targetAmount: toPaise(300000),
       targetDate: futureISO(180),
@@ -381,6 +813,7 @@ export async function seedDatabase(db: Database): Promise<void> {
   const [laptop] = await db
     .insert(s.goals)
     .values({
+      userId,
       name: "New Laptop",
       targetAmount: toPaise(150000),
       targetDate: futureISO(5),
@@ -388,10 +821,29 @@ export async function seedDatabase(db: Database): Promise<void> {
       color: "#6366f1",
     })
     .returning({ id: s.goals.id });
-  await db.insert(s.goalContributions).values([
-    { goalId: emergency.id, amount: toPaise(50000), occurredAt: daysAgoISO(today, 90), note: "Initial" },
-    { goalId: emergency.id, amount: toPaise(60000), occurredAt: daysAgoISO(today, 60) },
-    { goalId: emergency.id, amount: toPaise(70000), occurredAt: daysAgoISO(today, 20) },
-    { goalId: laptop.id, amount: toPaise(40000), occurredAt: daysAgoISO(today, 40) },
-  ]);
+  await db.insert(s.goalContributions).values(
+    [
+      {
+        goalId: emergency.id,
+        amount: toPaise(50000),
+        occurredAt: daysAgoISO(today, 90),
+        note: "Initial",
+      },
+      {
+        goalId: emergency.id,
+        amount: toPaise(60000),
+        occurredAt: daysAgoISO(today, 60),
+      },
+      {
+        goalId: emergency.id,
+        amount: toPaise(70000),
+        occurredAt: daysAgoISO(today, 20),
+      },
+      {
+        goalId: laptop.id,
+        amount: toPaise(40000),
+        occurredAt: daysAgoISO(today, 40),
+      },
+    ].map((c) => ({ ...c, userId })),
+  );
 }

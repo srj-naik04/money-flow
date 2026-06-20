@@ -10,7 +10,8 @@ export function useInsights() {
   const projectId = useActiveProjectId();
   return useQuery({
     queryKey: qk.insights(projectId),
-    queryFn: ({ signal }) => api.get<InsightCard[]>(`/api/insights?projectId=${projectId}`, signal),
+    queryFn: ({ signal }) =>
+      api.get<InsightCard[]>(`/api/insights?projectId=${projectId}`, signal),
     placeholderData: keepPreviousData,
   });
 }

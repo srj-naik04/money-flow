@@ -11,7 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
 
 import { useCreateTransaction } from "@/hooks/use-transactions";
@@ -24,7 +27,9 @@ import { toPaise } from "@/lib/money";
 import { todayISO } from "@/lib/date";
 
 const schema = z.object({
-  amount: z.string().refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
+  amount: z
+    .string()
+    .refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
   occurredAt: z.string().min(1, "Pick a date"),
   projectId: z.string().optional(),
   categoryId: z.string().optional(),
@@ -63,11 +68,17 @@ export function IncomeForm({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({ value: p.id, label: p.name }));
+  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
   const categoryOptions: SelectOption[] = (categories ?? [])
     .filter((c) => c.kind === "income" && !c.isArchived)
     .map((c) => ({ value: c.id, label: c.name }));
-  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({ value: a.id, label: a.name }));
+  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -104,9 +115,18 @@ export function IncomeForm({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form onSubmit={onSubmit} onKeyDown={handleKeyDown} className="space-y-4 pt-2">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={handleKeyDown}
+      className="space-y-4 pt-2"
+    >
       <Field label="Amount" htmlFor="amount" error={errors.amount?.message}>
-        <AmountInput id="amount" autoFocus aria-invalid={!!errors.amount} {...register("amount")} />
+        <AmountInput
+          id="amount"
+          autoFocus
+          aria-invalid={!!errors.amount}
+          {...register("amount")}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -161,18 +181,37 @@ export function IncomeForm({ onDone }: { onDone: () => void }) {
       </div>
 
       <Field label="Source" htmlFor="vendor">
-        <Input id="vendor" placeholder="e.g. Acme Corp…" spellCheck={false} {...register("vendor")} />
+        <Input
+          id="vendor"
+          placeholder="e.g. Acme Corp…"
+          spellCheck={false}
+          {...register("vendor")}
+        />
       </Field>
 
       <Field label="Notes" htmlFor="notes">
-        <Textarea id="notes" rows={2} placeholder="Optional…" {...register("notes")} />
+        <Textarea
+          id="notes"
+          rows={2}
+          placeholder="Optional…"
+          {...register("notes")}
+        />
       </Field>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onDone} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDone}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting} onClick={() => (addAnother.current = false)}>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          onClick={() => (addAnother.current = false)}
+        >
           {isSubmitting ? "Saving…" : "Add Income"}
         </Button>
       </div>

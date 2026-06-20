@@ -32,17 +32,31 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       code: "network_error",
       message: res.statusText || "Network error. Check your connection.",
     };
-    throw new ApiClientError(res.status, err.code, err.message, err.fieldErrors);
+    throw new ApiClientError(
+      res.status,
+      err.code,
+      err.message,
+      err.fieldErrors,
+    );
   }
   return envelope.data as T;
 }
 
 export const api = {
-  get: <T>(url: string, signal?: AbortSignal) => request<T>(url, { method: "GET", signal }),
+  get: <T>(url: string, signal?: AbortSignal) =>
+    request<T>(url, { method: "GET", signal }),
   post: <T>(url: string, body?: unknown, signal?: AbortSignal) =>
-    request<T>(url, { method: "POST", body: JSON.stringify(body ?? {}), signal }),
+    request<T>(url, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+      signal,
+    }),
   patch: <T>(url: string, body?: unknown, signal?: AbortSignal) =>
-    request<T>(url, { method: "PATCH", body: JSON.stringify(body ?? {}), signal }),
+    request<T>(url, {
+      method: "PATCH",
+      body: JSON.stringify(body ?? {}),
+      signal,
+    }),
   del: <T>(url: string, body?: unknown, signal?: AbortSignal) =>
     request<T>(url, {
       method: "DELETE",

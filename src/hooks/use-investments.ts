@@ -21,7 +21,8 @@ export function useInvestments(projectIdOverride?: string) {
   return useQuery({
     queryKey: qk.investments(projectId),
     queryFn: ({ signal }) => {
-      const q = projectId && projectId !== "all" ? `?projectId=${projectId}` : "";
+      const q =
+        projectId && projectId !== "all" ? `?projectId=${projectId}` : "";
       return api.get<InvestmentDTO[]>(`/api/investments${q}`, signal);
     },
     placeholderData: keepPreviousData,
@@ -58,7 +59,8 @@ export function useUpdateInvestmentValue() {
 export function useDeleteInvestment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.del<{ id: string }>(`/api/investments/${id}`),
+    mutationFn: (id: string) =>
+      api.del<{ id: string }>(`/api/investments/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

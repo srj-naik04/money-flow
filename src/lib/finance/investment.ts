@@ -1,5 +1,8 @@
 /** Absolute profit/loss (paise). */
-export function profitLoss(investedPaise: number, currentPaise: number): number {
+export function profitLoss(
+  investedPaise: number,
+  currentPaise: number,
+): number {
   return currentPaise - investedPaise;
 }
 

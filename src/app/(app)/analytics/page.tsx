@@ -4,19 +4,28 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { PageHeader } from "@/components/common/page-header";
 import { ErrorState } from "@/components/common/error-state";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useSubscriptions } from "@/hooks/use-subscriptions";
 import type { AnalyticsRange } from "@/types/api";
 
 const AnalyticsCharts = dynamic(
-  () => import("@/components/charts/analytics-charts").then((m) => m.AnalyticsCharts),
+  () =>
+    import("@/components/charts/analytics-charts").then(
+      (m) => m.AnalyticsCharts,
+    ),
   {
     ssr: false,
     loading: () => (
       <div className="grid gap-4 lg:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-72 animate-pulse rounded-xl border bg-muted/40" />
+          <div
+            key={i}
+            className="h-72 animate-pulse rounded-xl border bg-muted/40"
+          />
         ))}
       </div>
     ),
@@ -61,11 +70,17 @@ export default function AnalyticsPage() {
       ) : !analytics.data ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-72 animate-pulse rounded-xl border bg-muted/40" />
+            <div
+              key={i}
+              className="h-72 animate-pulse rounded-xl border bg-muted/40"
+            />
           ))}
         </div>
       ) : (
-        <AnalyticsCharts data={analytics.data} subscriptions={subs.data ?? []} />
+        <AnalyticsCharts
+          data={analytics.data}
+          subscriptions={subs.data ?? []}
+        />
       )}
     </div>
   );

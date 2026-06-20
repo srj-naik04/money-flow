@@ -3,7 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
-import { Download, Trash2, X, Search, ArrowDownUp, MoreHorizontal, Pencil } from "lucide-react";
+import {
+  Download,
+  Trash2,
+  X,
+  Search,
+  ArrowDownUp,
+  MoreHorizontal,
+  Pencil,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +25,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TransactionEditModal } from "./transaction-edit-modal";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Money } from "@/components/common/money";
 import { ProjectDot } from "@/components/common/project-dot";
 import { EmptyState } from "@/components/common/empty-state";
@@ -208,7 +219,8 @@ export function TransactionsView() {
           },
         });
       },
-      onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't delete"),
+      onError: (e) =>
+        toast.error(e instanceof Error ? e.message : "Couldn't delete"),
     });
   };
 
@@ -218,15 +230,19 @@ export function TransactionsView() {
       onSuccess: (res) => {
         setSelected(new Set());
         setConfirmBulk(false);
-        toast.success(`Deleted ${res.deleted} transaction${res.deleted === 1 ? "" : "s"}`);
+        toast.success(
+          `Deleted ${res.deleted} transaction${res.deleted === 1 ? "" : "s"}`,
+        );
       },
-      onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't delete"),
+      onError: (e) =>
+        toast.error(e instanceof Error ? e.message : "Couldn't delete"),
     });
   };
 
   const handleExport = async () => {
     const p = new URLSearchParams();
-    if (filters.projectId && filters.projectId !== "all") p.set("projectId", filters.projectId);
+    if (filters.projectId && filters.projectId !== "all")
+      p.set("projectId", filters.projectId);
     if (filters.type && filters.type !== "all") p.set("type", filters.type);
     if (filters.categoryId) p.set("categoryId", filters.categoryId);
     if (filters.from) p.set("from", filters.from);
@@ -258,7 +274,11 @@ export function TransactionsView() {
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="w-36">
-            <EntitySelect value={type} onChange={setType} options={typeOptions} />
+            <EntitySelect
+              value={type}
+              onChange={setType}
+              options={typeOptions}
+            />
           </div>
           <div className="w-44">
             <EntitySelect
@@ -286,7 +306,12 @@ export function TransactionsView() {
             className="w-36"
             aria-label="To date"
           />
-          <Button variant="outline" size="default" onClick={handleExport} className="gap-2">
+          <Button
+            variant="outline"
+            size="default"
+            onClick={handleExport}
+            className="gap-2"
+          >
             <Download className="size-4" />
             <span className="hidden sm:inline">CSV</span>
           </Button>
@@ -299,7 +324,11 @@ export function TransactionsView() {
           <div className="flex w-full items-center justify-between gap-2">
             <span className="font-medium">{selected.size} selected</span>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelected(new Set())}
+              >
                 <X className="size-4" /> Clear
               </Button>
               <Button
@@ -319,11 +348,17 @@ export function TransactionsView() {
             </span>
             <span>
               <span className="text-muted-foreground">In </span>
-              <Money paise={totals.data?.income ?? 0} className="font-medium text-positive" />
+              <Money
+                paise={totals.data?.income ?? 0}
+                className="font-medium text-positive"
+              />
             </span>
             <span>
               <span className="text-muted-foreground">Out </span>
-              <Money paise={totals.data?.expense ?? 0} className="font-medium text-negative" />
+              <Money
+                paise={totals.data?.expense ?? 0}
+                className="font-medium text-negative"
+              />
             </span>
             <span>
               <span className="text-muted-foreground">GST </span>
@@ -331,7 +366,11 @@ export function TransactionsView() {
             </span>
             <span>
               <span className="text-muted-foreground">Net </span>
-              <Money paise={totals.data?.net ?? 0} className="font-medium" colorBySign />
+              <Money
+                paise={totals.data?.net ?? 0}
+                className="font-medium"
+                colorBySign
+              />
             </span>
           </div>
         )}
@@ -339,7 +378,10 @@ export function TransactionsView() {
 
       {/* Table */}
       {query.isError && !query.data ? (
-        <ErrorState message={(query.error as Error)?.message} onRetry={() => void query.refetch()} />
+        <ErrorState
+          message={(query.error as Error)?.message}
+          onRetry={() => void query.refetch()}
+        />
       ) : rows.length === 0 && !query.isLoading ? (
         <EmptyState
           icon={ArrowDownUp}
@@ -349,136 +391,187 @@ export function TransactionsView() {
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className={isDesktop ? "overflow-x-auto" : undefined}>
-            <div className={isDesktop ? "min-w-[840px]" : undefined}>
-          {isDesktop ? (
-            <div className="grid grid-cols-[40px_104px_92px_minmax(140px,1fr)_120px_96px_120px_44px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
-              <Checkbox
-                checked={allSelected}
-                indeterminate={someSelected}
-                onCheckedChange={toggleAll}
-                aria-label="Select all"
-              />
-              <span>Date</span>
-              <span>Type</span>
-              <span>Category / Project</span>
-              <span className="text-right">Amount</span>
-              <span className="text-right">GST</span>
-              <span className="text-right">Net</span>
-              <span className="sr-only">Actions</span>
-            </div>
-          ) : null}
+            <div className={isDesktop ? "min-w-[860px]" : undefined}>
+              {isDesktop ? (
+                <div className="grid grid-cols-[40px_100px_88px_minmax(180px,2.2fr)_minmax(116px,1.3fr)_minmax(84px,1fr)_minmax(116px,1.3fr)_44px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                  <span>Date</span>
+                  <span>Type</span>
+                  <span>Category / Project</span>
+                  <span className="text-right">Amount</span>
+                  <span className="text-right">GST</span>
+                  <span className="text-right">Net</span>
+                  <span className="sr-only">Actions</span>
+                </div>
+              ) : null}
 
-          <div ref={scrollRef} className="max-h-[calc(100dvh-22rem)] overflow-y-auto">
-            <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-              {virtualItems.map((vi) => {
-                const t = rows[vi.index];
-                if (!t) return null;
-                const selectedRow = selected.has(t.id);
-                return (
-                  <div
-                    key={t.id}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: `${vi.size}px`,
-                      transform: `translateY(${vi.start}px)`,
-                    }}
-                    className={cn(
-                      "border-b last:border-b-0",
-                      selectedRow ? "bg-accent/50" : "hover:bg-accent/30",
-                    )}
-                  >
-                    {isDesktop ? (
-                      <div className="grid h-full grid-cols-[40px_104px_92px_minmax(140px,1fr)_120px_96px_120px_44px] items-center gap-2 px-3 text-sm">
-                        <Checkbox
-                          checked={selectedRow}
-                          onCheckedChange={() => toggleRow(t.id)}
-                          aria-label="Select row"
-                        />
-                        <span className="text-muted-foreground tabular-nums">
-                          {formatDateShort(t.occurredAt)}
-                        </span>
-                        <span>
-                          <Badge className={cn("font-medium", typeBadge[t.type])} variant="secondary">
-                            {t.type}
-                          </Badge>
-                        </span>
-                        <span className="flex min-w-0 items-center gap-2">
-                          {t.projectColor ? <ProjectDot color={t.projectColor} /> : null}
-                          <span className="truncate">{t.categoryName ?? t.vendor ?? "—"}</span>
-                          {t.projectName ? (
-                            <span className="truncate text-xs text-muted-foreground">
-                              {t.projectName}
+              <div
+                ref={scrollRef}
+                className="max-h-[calc(100dvh-22rem)] overflow-y-auto"
+              >
+                <div
+                  style={{
+                    height: virtualizer.getTotalSize(),
+                    position: "relative",
+                  }}
+                >
+                  {virtualItems.map((vi) => {
+                    const t = rows[vi.index];
+                    if (!t) return null;
+                    const selectedRow = selected.has(t.id);
+                    return (
+                      <div
+                        key={t.id}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${vi.size}px`,
+                          transform: `translateY(${vi.start}px)`,
+                        }}
+                        className={cn(
+                          "border-b last:border-b-0",
+                          selectedRow ? "bg-accent/50" : "hover:bg-accent/30",
+                        )}
+                      >
+                        {isDesktop ? (
+                          <div className="grid h-full grid-cols-[40px_100px_88px_minmax(180px,2.2fr)_minmax(116px,1.3fr)_minmax(84px,1fr)_minmax(116px,1.3fr)_44px] items-center gap-2 px-3 text-sm">
+                            <Checkbox
+                              checked={selectedRow}
+                              onCheckedChange={() => toggleRow(t.id)}
+                              aria-label="Select row"
+                            />
+                            <span className="text-muted-foreground tabular-nums">
+                              {formatDateShort(t.occurredAt)}
                             </span>
-                          ) : null}
-                        </span>
-                        <Money paise={t.grossAmount} className="text-right" />
-                        <Money paise={t.gstAmount} className="text-right text-muted-foreground" />
-                        <Money paise={t.signedAmount} className="text-right" colorBySign />
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={<Button variant="ghost" size="icon-sm" aria-label="Row actions" />}
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditing(t)}>
-                              <Pencil className="size-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem variant="destructive" onClick={() => handleDelete(t)}>
-                              <Trash2 className="size-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    ) : (
-                      <div className="flex h-full items-center gap-3 px-3">
-                        <Checkbox
-                          checked={selectedRow}
-                          onCheckedChange={() => toggleRow(t.id)}
-                          aria-label="Select row"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            {t.projectColor ? <ProjectDot color={t.projectColor} /> : null}
-                            <span className="truncate text-sm font-medium">
-                              {t.categoryName ?? t.vendor ?? t.type}
+                            <span>
+                              <Badge
+                                className={cn("font-medium", typeBadge[t.type])}
+                                variant="secondary"
+                              >
+                                {t.type}
+                              </Badge>
                             </span>
+                            <span className="flex min-w-0 items-center gap-2">
+                              {t.projectColor ? (
+                                <ProjectDot color={t.projectColor} />
+                              ) : null}
+                              <span className="truncate">
+                                {t.categoryName ?? t.vendor ?? "—"}
+                              </span>
+                              {t.projectName ? (
+                                <span className="truncate text-xs text-muted-foreground">
+                                  {t.projectName}
+                                </span>
+                              ) : null}
+                            </span>
+                            <Money
+                              paise={t.grossAmount}
+                              className="text-right"
+                            />
+                            <Money
+                              paise={t.gstAmount}
+                              className="text-right text-muted-foreground"
+                            />
+                            <Money
+                              paise={t.signedAmount}
+                              className="text-right"
+                              colorBySign
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Row actions"
+                                  />
+                                }
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditing(t)}>
+                                  <Pencil className="size-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => handleDelete(t)}
+                                >
+                                  <Trash2 className="size-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {formatDateShort(t.occurredAt)}
-                            {t.projectName ? ` · ${t.projectName}` : ""}
-                            {t.gstAmount > 0 ? ` · GST included` : ""}
-                          </p>
-                        </div>
-                        <Money paise={t.signedAmount} className="text-sm font-medium" colorBySign />
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={<Button variant="ghost" size="icon-sm" aria-label="Row actions" />}
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditing(t)}>
-                              <Pencil className="size-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem variant="destructive" onClick={() => handleDelete(t)}>
-                              <Trash2 className="size-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        ) : (
+                          <div className="flex h-full items-center gap-3 px-3">
+                            <Checkbox
+                              checked={selectedRow}
+                              onCheckedChange={() => toggleRow(t.id)}
+                              aria-label="Select row"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                {t.projectColor ? (
+                                  <ProjectDot color={t.projectColor} />
+                                ) : null}
+                                <span className="truncate text-sm font-medium">
+                                  {t.categoryName ?? t.vendor ?? t.type}
+                                </span>
+                              </div>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {formatDateShort(t.occurredAt)}
+                                {t.projectName ? ` · ${t.projectName}` : ""}
+                                {t.gstAmount > 0 ? ` · GST included` : ""}
+                              </p>
+                            </div>
+                            <Money
+                              paise={t.signedAmount}
+                              className="text-sm font-medium"
+                              colorBySign
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Row actions"
+                                  />
+                                }
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditing(t)}>
+                                  <Pencil className="size-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => handleDelete(t)}
+                                >
+                                  <Trash2 className="size-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+                {query.isFetchingNextPage ? (
+                  <div className="py-3 text-center text-sm text-muted-foreground">
+                    Loading more…
                   </div>
-                );
-              })}
-            </div>
-            {query.isFetchingNextPage ? (
-              <div className="py-3 text-center text-sm text-muted-foreground">Loading more…</div>
-            ) : null}
-          </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>

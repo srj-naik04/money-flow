@@ -10,6 +10,7 @@ import {
   Banknote,
   Landmark,
   PiggyBank,
+  Vault,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,18 +21,39 @@ import { Money } from "@/components/common/money";
 import { useCalendar } from "@/hooks/use-calendar";
 import { todayISO, addMonthsISO, formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import type { CalendarDay, CalendarEvent } from "@/server/services/calendar.service";
+import type {
+  CalendarDay,
+  CalendarEvent,
+} from "@/server/services/calendar.service";
 
-const EVENT_ICON: Record<CalendarEvent["kind"], { Icon: LucideIcon; cls: string }> = {
+const EVENT_ICON: Record<
+  CalendarEvent["kind"],
+  { Icon: LucideIcon; cls: string }
+> = {
   renewal: { Icon: Repeat, cls: "text-chart-1" },
   investment: { Icon: TrendingUp, cls: "text-chart-7" },
   salary: { Icon: Banknote, cls: "text-positive" },
   emi: { Icon: Landmark, cls: "text-negative" },
   sip: { Icon: PiggyBank, cls: "text-chart-7" },
+  deposit: { Icon: Vault, cls: "text-chart-5" },
+  maturity: { Icon: Vault, cls: "text-positive" },
 };
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 function monthMatrix(month: string): (string | null)[] {
   const [y, m] = month.split("-").map(Number);
@@ -40,7 +62,8 @@ function monthMatrix(month: string): (string | null)[] {
   const daysInMonth = new Date(y, m, 0).getDate();
   const cells: (string | null)[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(`${month}-${String(d).padStart(2, "0")}`);
+  for (let d = 1; d <= daysInMonth; d++)
+    cells.push(`${month}-${String(d).padStart(2, "0")}`);
   while (cells.length % 7) cells.push(null);
   return cells;
 }
@@ -78,13 +101,27 @@ export default function CalendarPage() {
         description="Income, expenses, renewals and investments by day."
         actions={
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" onClick={() => setMonth(addMonthsISO(`${month}-01`, -1).slice(0, 7))} aria-label="Previous month">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() =>
+                setMonth(addMonthsISO(`${month}-01`, -1).slice(0, 7))
+              }
+              aria-label="Previous month"
+            >
               <ChevronLeft className="size-4" />
             </Button>
             <span className="w-36 text-center text-sm font-medium tabular-nums">
               {MONTHS[mNum - 1]} {y}
             </span>
-            <Button variant="outline" size="icon-sm" onClick={() => setMonth(addMonthsISO(`${month}-01`, 1).slice(0, 7))} aria-label="Next month">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() =>
+                setMonth(addMonthsISO(`${month}-01`, 1).slice(0, 7))
+              }
+              aria-label="Next month"
+            >
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -95,12 +132,21 @@ export default function CalendarPage() {
         <CardContent className="p-2 sm:p-3">
           <div className="grid grid-cols-7 gap-1">
             {WEEKDAYS.map((w) => (
-              <div key={w} className="py-1 text-center text-xs font-medium text-muted-foreground">
+              <div
+                key={w}
+                className="py-1 text-center text-xs font-medium text-muted-foreground"
+              >
                 {w}
               </div>
             ))}
             {cells.map((date, i) => {
-              if (!date) return <div key={`b${i}`} className="aspect-square sm:aspect-[4/3]" />;
+              if (!date)
+                return (
+                  <div
+                    key={`b${i}`}
+                    className="aspect-square sm:aspect-[4/3]"
+                  />
+                );
               const day = dayMap.get(date);
               const events = eventMap.get(date) ?? [];
               const isToday = date === today;
@@ -132,15 +178,21 @@ export default function CalendarPage() {
                         const { Icon, cls } = EVENT_ICON[k];
                         return <Icon key={k} className={cn("size-3", cls)} />;
                       })}
-                      {day?.hasLarge ? <TriangleAlert className="size-3 text-warning-foreground" /> : null}
+                      {day?.hasLarge ? (
+                        <TriangleAlert className="size-3 text-warning-foreground" />
+                      ) : null}
                     </div>
                   </div>
                   <div className="mt-auto hidden flex-col gap-0.5 text-[10px] leading-tight sm:flex">
                     {day && day.income > 0 ? (
-                      <span className="truncate text-positive">+<Money paise={day.income} compact decimals={false} /></span>
+                      <span className="truncate text-positive">
+                        +<Money paise={day.income} compact decimals={false} />
+                      </span>
                     ) : null}
                     {day && day.expense > 0 ? (
-                      <span className="truncate text-negative">−<Money paise={day.expense} compact decimals={false} /></span>
+                      <span className="truncate text-negative">
+                        −<Money paise={day.expense} compact decimals={false} />
+                      </span>
                     ) : null}
                   </div>
                 </button>
@@ -154,21 +206,30 @@ export default function CalendarPage() {
         <Card>
           <CardContent className="space-y-3 pt-4">
             <h2 className="font-medium">{formatDate(selected)}</h2>
-            {selectedDay && (selectedDay.income > 0 || selectedDay.expense > 0) ? (
+            {selectedDay &&
+            (selectedDay.income > 0 || selectedDay.expense > 0) ? (
               <div className="flex gap-6 text-sm">
                 {selectedDay.income > 0 ? (
                   <span>
                     <span className="text-muted-foreground">Income </span>
-                    <Money paise={selectedDay.income} className="font-medium text-positive" />
+                    <Money
+                      paise={selectedDay.income}
+                      className="font-medium text-positive"
+                    />
                   </span>
                 ) : null}
                 {selectedDay.expense > 0 ? (
                   <span>
                     <span className="text-muted-foreground">Expense </span>
-                    <Money paise={selectedDay.expense} className="font-medium text-negative" />
+                    <Money
+                      paise={selectedDay.expense}
+                      className="font-medium text-negative"
+                    />
                   </span>
                 ) : null}
-                <span className="text-muted-foreground">{selectedDay.count} transactions</span>
+                <span className="text-muted-foreground">
+                  {selectedDay.count} transactions
+                </span>
               </div>
             ) : null}
             {selectedEvents.length > 0 ? (
@@ -179,14 +240,18 @@ export default function CalendarPage() {
                     <li key={i} className="flex items-center gap-2 text-sm">
                       <Icon className={cn("size-4", cls)} />
                       <span className="flex-1">{e.name}</span>
-                      {e.amount ? <Money paise={e.amount} className="font-medium" /> : null}
+                      {e.amount ? (
+                        <Money paise={e.amount} className="font-medium" />
+                      ) : null}
                     </li>
                   );
                 })}
               </ul>
             ) : null}
             {!selectedDay && selectedEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing on this day.</p>
+              <p className="text-sm text-muted-foreground">
+                Nothing on this day.
+              </p>
             ) : null}
           </CardContent>
         </Card>

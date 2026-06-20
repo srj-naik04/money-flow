@@ -7,6 +7,7 @@ import { ProjectFilter } from "./project-filter";
 import { ThemeToggle } from "./theme-toggle";
 import { ConnectivityBadge } from "./connectivity-badge";
 import { PendingWrites } from "./pending-writes";
+import { UserMenu } from "./user-menu";
 import { QuickAddMenu } from "@/components/quick-add/quick-add-menu";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -45,6 +46,7 @@ export function Topbar() {
       <ConnectivityBadge />
       <ThemeToggle />
       <QuickAddMenu />
+      <UserMenu />
     </header>
   );
 }

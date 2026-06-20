@@ -24,7 +24,11 @@ export function MobileBottomNav() {
       aria-label="Primary"
     >
       {[first, second].map((item) => (
-        <NavTab key={item.href} item={item} active={isActive(pathname, item.href)} />
+        <NavTab
+          key={item.href}
+          item={item}
+          active={isActive(pathname, item.href)}
+        />
       ))}
 
       <button
@@ -37,7 +41,11 @@ export function MobileBottomNav() {
       </button>
 
       {[third, fourth].map((item) => (
-        <NavTab key={item.href} item={item} active={isActive(pathname, item.href)} />
+        <NavTab
+          key={item.href}
+          item={item}
+          active={isActive(pathname, item.href)}
+        />
       ))}
     </nav>
   );

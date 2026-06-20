@@ -35,7 +35,8 @@ const ICONS: Record<string, LucideIcon> = {
 const severityStyles: Record<string, string> = {
   info: "border-border bg-card text-card-foreground [&_svg]:text-info",
   success: "border-positive/30 bg-positive-muted/40 [&_svg]:text-positive",
-  warning: "border-warning/40 bg-warning-muted/40 [&_svg]:text-warning-foreground",
+  warning:
+    "border-warning/40 bg-warning-muted/40 [&_svg]:text-warning-foreground",
   critical: "border-negative/40 bg-negative-muted/40 [&_svg]:text-negative",
 };
 

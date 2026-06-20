@@ -28,7 +28,12 @@ export function deriveTransactionAmounts(input: DeriveInput): DerivedAmounts {
     const gstEnabled = input.gstEnabled ?? false;
     const inclusive = input.gstIncluded ?? true;
     const rate = gstEnabled ? (input.gstRateBps ?? 0) : 0;
-    const split = computeGst({ amountPaise: entered, rateBps: rate, inclusive, gstEnabled });
+    const split = computeGst({
+      amountPaise: entered,
+      rateBps: rate,
+      inclusive,
+      gstEnabled,
+    });
     return {
       grossAmount: split.gross,
       baseAmount: split.base,
@@ -72,7 +77,12 @@ export function deriveSubscriptionAmounts(input: {
   const gstEnabled = input.gstEnabled ?? false;
   const inclusive = input.gstIncluded ?? true;
   const rate = gstEnabled ? (input.gstRateBps ?? 0) : 0;
-  const split = computeGst({ amountPaise: entered, rateBps: rate, inclusive, gstEnabled });
+  const split = computeGst({
+    amountPaise: entered,
+    rateBps: rate,
+    inclusive,
+    gstEnabled,
+  });
   return {
     amount: split.gross,
     baseAmount: split.base,

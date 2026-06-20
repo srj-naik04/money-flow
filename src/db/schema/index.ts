@@ -9,4 +9,5 @@ export * from "./investment-value-history";
 export * from "./recurring-items";
 export * from "./goals";
 export * from "./goal-contributions";
+export * from "./deposits";
 export * from "./settings";

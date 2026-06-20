@@ -25,7 +25,9 @@ import { INVESTMENT_TYPES } from "@/lib/constants";
 import { formatDateShort } from "@/lib/date";
 import type { InvestmentDTO } from "@/types/domain";
 
-const typeLabel = Object.fromEntries(INVESTMENT_TYPES.map((t) => [t.value, t.label]));
+const typeLabel = Object.fromEntries(
+  INVESTMENT_TYPES.map((t) => [t.value, t.label]),
+);
 
 export default function InvestmentsPage() {
   const { data, isLoading, isError, error, refetch } = useInvestments();
@@ -61,21 +63,35 @@ export default function InvestmentsPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Invested" value={<Money paise={invested} />} />
-        <StatCard label="Portfolio value" value={<Money paise={portfolio} />} emphasize />
+        <StatCard
+          label="Portfolio value"
+          value={<Money paise={portfolio} />}
+          emphasize
+        />
         <StatCard
           label="Profit / Loss"
           value={<Money paise={pl} colorBySign showPlus />}
           trend={items.length > 0 ? <TrendBadge value={plPct} /> : undefined}
         />
-        <StatCard label="Gain" value={<Percent value={plPct} showSign />} icon={TrendingUp} />
+        <StatCard
+          label="Gain"
+          value={<Percent value={plPct} showSign />}
+          icon={TrendingUp}
+        />
       </div>
 
       {isError && !data ? (
-        <ErrorState message={(error as Error)?.message} onRetry={() => void refetch()} />
+        <ErrorState
+          message={(error as Error)?.message}
+          onRetry={() => void refetch()}
+        />
       ) : !data && isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-xl border bg-muted/40" />
+            <div
+              key={i}
+              className="h-36 animate-pulse rounded-xl border bg-muted/40"
+            />
           ))}
         </div>
       ) : items.length === 0 ? (
@@ -87,7 +103,10 @@ export default function InvestmentsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((inv) => (
-            <div key={inv.id} className="rounded-xl border bg-card p-4 shadow-xs">
+            <div
+              key={inv.id}
+              className="rounded-xl border bg-card p-4 shadow-xs"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="truncate font-medium">{inv.name}</h3>
@@ -101,7 +120,15 @@ export default function InvestmentsPage() {
                   </div>
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Actions" />}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Actions"
+                      />
+                    }
+                  >
                     <MoreHorizontal className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -113,7 +140,10 @@ export default function InvestmentsPage() {
                     >
                       <Pencil className="size-4" /> Edit / update value
                     </DropdownMenuItem>
-                    <DropdownMenuItem variant="destructive" onClick={() => setDeleting(inv)}>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setDeleting(inv)}
+                    >
                       <Trash2 className="size-4" /> Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -123,14 +153,27 @@ export default function InvestmentsPage() {
               <div className="mt-4 space-y-2">
                 <div className="flex items-baseline justify-between">
                   <span className="text-xs text-muted-foreground">Current</span>
-                  <Money paise={inv.currentValue} className="text-lg font-semibold" />
+                  <Money
+                    paise={inv.currentValue}
+                    className="text-lg font-semibold"
+                  />
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-xs text-muted-foreground">Invested</span>
-                  <Money paise={inv.investedAmount} className="text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    Invested
+                  </span>
+                  <Money
+                    paise={inv.investedAmount}
+                    className="text-muted-foreground"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Money paise={inv.profitLoss} colorBySign showPlus className="text-sm font-medium" />
+                  <Money
+                    paise={inv.profitLoss}
+                    colorBySign
+                    showPlus
+                    className="text-sm font-medium"
+                  />
                   <TrendBadge value={inv.gainPct} />
                 </div>
               </div>
@@ -139,7 +182,11 @@ export default function InvestmentsPage() {
         </div>
       )}
 
-      <InvestmentFormModal open={formOpen} onOpenChange={setFormOpen} investment={editing} />
+      <InvestmentFormModal
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        investment={editing}
+      />
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(undefined)}

@@ -1,7 +1,8 @@
 /** Shared literal types (mirror the Drizzle enums) and constant lookups. */
 
-/** App version — also used as the TanStack Query persistence cache buster. */
-export const APP_VERSION = "0.1.0";
+/** App version — also used as the TanStack Query persistence cache buster.
+ * Bump this to force every client to discard its persisted (idb) cache on load. */
+export const APP_VERSION = "0.1.1";
 
 export type TxnType = "income" | "expense" | "transfer";
 export type CategoryKind = "income" | "expense";
@@ -18,11 +19,25 @@ export type InvestmentType =
   | "bond"
   | "real_estate"
   | "other";
-export type AccountType = "bank" | "cash" | "credit_card" | "wallet" | "upi" | "other";
+export type AccountType =
+  | "bank"
+  | "cash"
+  | "credit_card"
+  | "wallet"
+  | "upi"
+  | "other";
 export type RecurringFlow = "income" | "expense" | "investment";
 export type RecurringTemplate = "salary" | "emi" | "sip";
 export type RecurringStatus = "active" | "paused" | "completed" | "cancelled";
 export type GoalStatus = "active" | "achieved" | "archived";
+export type DepositType = "fd" | "rd";
+export type DepositStatus = "active" | "matured" | "closed";
+
+/** Deposit kinds for the Planner "Deposits" tab. */
+export const DEPOSIT_TYPES: { value: DepositType; label: string }[] = [
+  { value: "fd", label: "Fixed Deposit" },
+  { value: "rd", label: "Recurring Deposit" },
+];
 
 /** Planner recurring templates (label + the flow each maps to). */
 export const RECURRING_TEMPLATES: {

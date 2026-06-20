@@ -24,6 +24,8 @@ export const subscriptions = pgTable(
   "subscriptions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Owner (Neon Auth user id). Nullable until backfill, then set NOT NULL. */
+    userId: text("user_id"),
     name: text("name").notNull(),
     /** Gross amount charged per cycle, in paise. */
     amount: bigint("amount", { mode: "number" }).notNull(),
@@ -46,14 +48,22 @@ export const subscriptions = pgTable(
     }),
     notes: text("notes"),
     cancelledAt: date("cancelled_at", { mode: "string" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
+    index("subs_user_idx").on(t.userId),
     index("subs_status_idx").on(t.status),
     index("subs_project_idx").on(t.projectId),
     index("subs_anchor_idx").on(t.anchorDate),
-    check("subs_gst_reconciles", sql`${t.baseAmount} + ${t.gstAmount} = ${t.amount}`),
+    check(
+      "subs_gst_reconciles",
+      sql`${t.baseAmount} + ${t.gstAmount} = ${t.amount}`,
+    ),
     check("subs_amount_nonneg", sql`${t.amount} >= 0`),
   ],
 );

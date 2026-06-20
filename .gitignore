@@ -60,3 +60,6 @@ next-env.d.ts
 !public/**/*.jpg
 !public/**/*.jpeg
 .playwright-mcp/
+
+# local setup runbooks / handoff notes (infra endpoints + test creds — keep local)
+/docs/

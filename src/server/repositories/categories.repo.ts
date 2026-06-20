@@ -1,9 +1,13 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { categories } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
+import { getCurrentUserId } from "@/server/lib/request-context";
 import type { CategoryDTO } from "@/types/domain";
-import type { CategoryCreateInput, CategoryUpdateInput } from "@/lib/schemas/category";
+import type {
+  CategoryCreateInput,
+  CategoryUpdateInput,
+} from "@/lib/schemas/category";
 
 type Row = typeof categories.$inferSelect;
 
@@ -22,17 +26,27 @@ function toDTO(r: Row): CategoryDTO {
 }
 
 export async function listCategories(): Promise<CategoryDTO[]> {
+  const userId = getCurrentUserId();
   const rows = await db
     .select()
     .from(categories)
-    .orderBy(asc(categories.kind), asc(categories.sortOrder), asc(categories.name));
+    .where(eq(categories.userId, userId))
+    .orderBy(
+      asc(categories.kind),
+      asc(categories.sortOrder),
+      asc(categories.name),
+    );
   return rows.map(toDTO);
 }
 
-export async function createCategory(input: CategoryCreateInput): Promise<CategoryDTO> {
+export async function createCategory(
+  input: CategoryCreateInput,
+): Promise<CategoryDTO> {
+  const userId = getCurrentUserId();
   const [row] = await db
     .insert(categories)
     .values({
+      userId,
       name: input.name,
       kind: input.kind,
       icon: input.icon ?? null,
@@ -48,9 +62,18 @@ export async function updateCategory(
   id: string,
   input: CategoryUpdateInput,
 ): Promise<CategoryDTO> {
-  const [existing] = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [existing] = await db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+    .limit(1);
   if (!existing) throw AppError.notFound("Category not found");
-  if (existing.isSystem && input.name !== undefined && input.name !== existing.name) {
+  if (
+    existing.isSystem &&
+    input.name !== undefined &&
+    input.name !== existing.name
+  ) {
     throw AppError.badRequest("System categories cannot be renamed.");
   }
   const [row] = await db
@@ -59,20 +82,31 @@ export async function updateCategory(
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.icon !== undefined ? { icon: input.icon } : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
-      ...(input.isArchived !== undefined ? { isArchived: input.isArchived } : {}),
+      ...(input.isArchived !== undefined
+        ? { isArchived: input.isArchived }
+        : {}),
       ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
     })
-    .where(eq(categories.id, id))
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)))
     .returning();
   return toDTO(row);
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  const [existing] = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+  const userId = getCurrentUserId();
+  const [existing] = await db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+    .limit(1);
   if (!existing) throw AppError.notFound("Category not found");
   if (existing.isSystem) {
-    throw AppError.badRequest("System categories can't be deleted. Archive it instead.");
+    throw AppError.badRequest(
+      "System categories can't be deleted. Archive it instead.",
+    );
   }
   // Transactions referencing it have categoryId set null via FK.
-  await db.delete(categories).where(eq(categories.id, id));
+  await db
+    .delete(categories)
+    .where(and(eq(categories.id, id), eq(categories.userId, userId)));
 }

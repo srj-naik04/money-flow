@@ -1,6 +1,13 @@
-import { desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { transactions, projects, subscriptions, investments, categories } from "@/db/schema";
+import {
+  transactions,
+  projects,
+  subscriptions,
+  investments,
+  categories,
+} from "@/db/schema";
+import { getCurrentUserId } from "@/server/lib/request-context";
 
 export type SearchHit = {
   id: string;
@@ -24,12 +31,20 @@ function escapeLike(s: string): string {
 }
 
 export async function search(q: string): Promise<SearchBundle> {
+  const userId = getCurrentUserId();
   const term = `%${escapeLike(q.trim())}%`;
   if (q.trim().length < 1) {
-    return { transactions: [], projects: [], subscriptions: [], investments: [], categories: [] };
+    return {
+      transactions: [],
+      projects: [],
+      subscriptions: [],
+      investments: [],
+      categories: [],
+    };
   }
 
   const [txRows, projRows, subRows, invRows, catRows] = await Promise.all([
+    // (1) transactions — scoped, with the category-enrichment join also user-matched.
     db
       .select({
         id: transactions.id,
@@ -40,14 +55,47 @@ export async function search(q: string): Promise<SearchBundle> {
         category: categories.name,
       })
       .from(transactions)
-      .leftJoin(categories, eq(transactions.categoryId, categories.id))
-      .where(or(ilike(transactions.vendor, term), ilike(transactions.notes, term)))
+      .leftJoin(
+        categories,
+        and(
+          eq(transactions.categoryId, categories.id),
+          eq(categories.userId, userId),
+        ),
+      )
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          or(ilike(transactions.vendor, term), ilike(transactions.notes, term)),
+        ),
+      )
       .orderBy(desc(transactions.occurredAt))
       .limit(6),
-    db.select().from(projects).where(ilike(projects.name, term)).limit(5),
-    db.select().from(subscriptions).where(ilike(subscriptions.name, term)).limit(5),
-    db.select().from(investments).where(ilike(investments.name, term)).limit(5),
-    db.select().from(categories).where(ilike(categories.name, term)).limit(5),
+    // (2) projects — scoped.
+    db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.userId, userId), ilike(projects.name, term)))
+      .limit(5),
+    // (3) subscriptions — scoped.
+    db
+      .select()
+      .from(subscriptions)
+      .where(
+        and(eq(subscriptions.userId, userId), ilike(subscriptions.name, term)),
+      )
+      .limit(5),
+    // (4) investments — scoped.
+    db
+      .select()
+      .from(investments)
+      .where(and(eq(investments.userId, userId), ilike(investments.name, term)))
+      .limit(5),
+    // (5) categories — scoped.
+    db
+      .select()
+      .from(categories)
+      .where(and(eq(categories.userId, userId), ilike(categories.name, term)))
+      .limit(5),
   ]);
 
   return {

@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
 
 import { useCreateGoal, useUpdateGoal } from "@/hooks/use-goals";
@@ -23,7 +26,9 @@ import type { GoalCreateInput, GoalUpdateInput } from "@/lib/schemas/goal";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required"),
-  targetAmount: z.string().refine((v) => toPaise(v) > 0, "Enter a target greater than ₹0"),
+  targetAmount: z
+    .string()
+    .refine((v) => toPaise(v) > 0, "Enter a target greater than ₹0"),
   targetDate: z.string().optional(),
   linkedAccountId: z.string().optional(),
   linkedInvestmentId: z.string().optional(),
@@ -31,7 +36,13 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void }) {
+export function GoalForm({
+  goal,
+  onDone,
+}: {
+  goal?: GoalDTO;
+  onDone: () => void;
+}) {
   const create = useCreateGoal();
   const update = useUpdateGoal();
   const { data: accounts } = useAccounts();
@@ -55,7 +66,10 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
     },
   });
 
-  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({ value: a.id, label: a.name }));
+  const accountOptions: SelectOption[] = (accounts ?? []).map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
   const investmentOptions: SelectOption[] = (investments ?? []).map((i) => ({
     value: i.id,
     label: i.name,
@@ -95,12 +109,25 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pt-2">
       <Field label="Goal name" htmlFor="g-name" error={errors.name?.message}>
-        <Input id="g-name" autoFocus placeholder="e.g. Emergency fund…" {...register("name")} />
+        <Input
+          id="g-name"
+          autoFocus
+          placeholder="e.g. Emergency fund…"
+          {...register("name")}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Target" htmlFor="g-target" error={errors.targetAmount?.message}>
-          <AmountInput id="g-target" aria-invalid={!!errors.targetAmount} {...register("targetAmount")} />
+        <Field
+          label="Target"
+          htmlFor="g-target"
+          error={errors.targetAmount?.message}
+        >
+          <AmountInput
+            id="g-target"
+            aria-invalid={!!errors.targetAmount}
+            {...register("targetAmount")}
+          />
         </Field>
         <Field label="Target date" htmlFor="g-date" hint="Optional">
           <DateField id="g-date" {...register("targetDate")} />
@@ -141,11 +168,21 @@ export function GoalForm({ goal, onDone }: { goal?: GoalDTO; onDone: () => void 
       </div>
 
       <Field label="Notes" htmlFor="g-notes">
-        <Textarea id="g-notes" rows={2} placeholder="Optional…" {...register("notes")} />
+        <Textarea
+          id="g-notes"
+          rows={2}
+          placeholder="Optional…"
+          {...register("notes")}
+        />
       </Field>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onDone} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDone}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>

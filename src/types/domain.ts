@@ -10,6 +10,8 @@ import type {
   RecurringTemplate,
   RecurringStatus,
   GoalStatus,
+  DepositType,
+  DepositStatus,
 } from "@/lib/constants";
 import type { RenewalBucket } from "@/lib/finance/renewals";
 
@@ -56,6 +58,13 @@ export type AccountDTO = {
   isArchived: boolean;
   sortOrder: number;
   balance: number;
+};
+
+/** This-month expense rolled up per payment source (account). `accountId` null
+ * = expenses with no account set. Powers the "spent from where" breakdown. */
+export type AccountSpendDTO = {
+  accountId: string | null;
+  spent: number;
 };
 
 export type TransactionDTO = {
@@ -152,6 +161,9 @@ export type RecurringItemDTO = {
   interestRateBps: number | null;
   investmentId: string | null;
   investmentName: string | null;
+  /** Salary only: monthly gross/CTC, and gross − net deductions (paise). */
+  grossSalary: number | null;
+  deductions: number | null;
   // computed
   nextDue: string;
   daysUntil: number;
@@ -193,6 +205,39 @@ export type GoalDTO = {
   contributions: GoalContributionDTO[];
 };
 
+export type DepositDTO = {
+  id: string;
+  type: DepositType;
+  name: string;
+  notes: string | null;
+  principalAmount: number;
+  interestRateBps: number;
+  startDate: string;
+  tenureMonths: number;
+  maturityDate: string;
+  maturityAmount: number;
+  status: DepositStatus;
+  accountId: string | null;
+  accountName: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  projectColor: string | null;
+  anchorDate: string | null;
+  installmentsPaid: number;
+  autoPost: boolean;
+  // computed
+  investedAmount: number;
+  interestComponent: number;
+  daysToMaturity: number;
+  isMatured: boolean;
+  monthlyEquivalent: number;
+  // RD recurrence (null for FD)
+  nextDue: string | null;
+  daysUntil: number | null;
+  bucket: RenewalBucket | null;
+  progressPct: number | null;
+};
+
 export type UpcomingPaymentDTO = {
   id: string;
   name: string;
@@ -230,6 +275,15 @@ export type DashboardStats = {
   goalsSaved: number;
   goalsTarget: number;
   activeGoals: number;
+  depositsInvested: number;
+  depositsMaturityValue: number;
+  rdMonthlyCommitment: number;
+  nextMaturity: {
+    id: string;
+    name: string;
+    amount: number;
+    date: string;
+  } | null;
 };
 
 export type SettingsDTO = {

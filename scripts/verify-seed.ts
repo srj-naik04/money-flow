@@ -16,7 +16,8 @@ async function main() {
       (select count(*) from investment_value_history) as history`;
   console.log("Row counts:", counts[0]);
 
-  const bad = await sql`select count(*) as n from transactions where base_amount + gst_amount <> gross_amount`;
+  const bad =
+    await sql`select count(*) as n from transactions where base_amount + gst_amount <> gross_amount`;
   console.log("GST reconciliation violations:", bad[0].n);
 
   const totals = await sql`

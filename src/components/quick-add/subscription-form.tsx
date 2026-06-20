@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { AmountInput } from "@/components/forms/amount-input";
 import { DateField } from "@/components/forms/date-field";
-import { EntitySelect, type SelectOption } from "@/components/forms/entity-select";
+import {
+  EntitySelect,
+  type SelectOption,
+} from "@/components/forms/entity-select";
 import { Field } from "@/components/forms/field";
 
 import { useCreateSubscription } from "@/hooks/use-subscriptions";
@@ -24,7 +27,9 @@ import { BILLING_CYCLES } from "@/lib/constants";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required"),
-  amount: z.string().refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
+  amount: z
+    .string()
+    .refine((v) => toPaise(v) > 0, "Enter an amount greater than ₹0"),
   billingCycle: z.enum(["monthly", "quarterly", "half_yearly", "yearly"]),
   anchorDate: z.string().min(1, "Pick the next due date"),
   projectId: z.string().optional(),
@@ -63,12 +68,21 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({ value: p.id, label: p.name }));
+  const projectOptions: SelectOption[] = (projects ?? []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
   const categoryOptions: SelectOption[] = (categories ?? [])
     .filter((c) => c.kind === "expense" && !c.isArchived)
     .map((c) => ({ value: c.id, label: c.name }));
-  const cycleOptions: SelectOption[] = BILLING_CYCLES.map((c) => ({ value: c.value, label: c.label }));
-  const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({ value: String(r), label: formatGstRate(r) }));
+  const cycleOptions: SelectOption[] = BILLING_CYCLES.map((c) => ({
+    value: c.value,
+    label: c.label,
+  }));
+  const gstRateOptions: SelectOption[] = GST_RATES_BPS.map((r) => ({
+    value: String(r),
+    label: formatGstRate(r),
+  }));
 
   const gstEnabled = watch("gstEnabled");
 
@@ -90,33 +104,56 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
       toast.success("Subscription added");
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add subscription");
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't add subscription",
+      );
     }
   });
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 pt-2">
       <Field label="Name" htmlFor="name" error={errors.name?.message}>
-        <Input id="name" autoFocus placeholder="e.g. Claude Pro" {...register("name")} />
+        <Input
+          id="name"
+          autoFocus
+          placeholder="e.g. Claude Pro"
+          {...register("name")}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Amount / cycle" htmlFor="amount" error={errors.amount?.message}>
-          <AmountInput id="amount" aria-invalid={!!errors.amount} {...register("amount")} />
+        <Field
+          label="Amount / cycle"
+          htmlFor="amount"
+          error={errors.amount?.message}
+        >
+          <AmountInput
+            id="amount"
+            aria-invalid={!!errors.amount}
+            {...register("amount")}
+          />
         </Field>
         <Field label="Billing cycle">
           <Controller
             control={control}
             name="billingCycle"
             render={({ field }) => (
-              <EntitySelect value={field.value} onChange={field.onChange} options={cycleOptions} />
+              <EntitySelect
+                value={field.value}
+                onChange={field.onChange}
+                options={cycleOptions}
+              />
             )}
           />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Next due date" htmlFor="anchor" error={errors.anchorDate?.message}>
+        <Field
+          label="Next due date"
+          htmlFor="anchor"
+          error={errors.anchorDate?.message}
+        >
           <DateField id="anchor" {...register("anchorDate")} />
         </Field>
         <Field label="Project">
@@ -124,7 +161,12 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
             control={control}
             name="projectId"
             render={({ field }) => (
-              <EntitySelect value={field.value} onChange={field.onChange} options={projectOptions} placeholder="Unassigned" />
+              <EntitySelect
+                value={field.value}
+                onChange={field.onChange}
+                options={projectOptions}
+                placeholder="Unassigned"
+              />
             )}
           />
         </Field>
@@ -136,7 +178,12 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
             control={control}
             name="categoryId"
             render={({ field }) => (
-              <EntitySelect value={field.value} onChange={field.onChange} options={categoryOptions} placeholder="Select…" />
+              <EntitySelect
+                value={field.value}
+                onChange={field.onChange}
+                options={categoryOptions}
+                placeholder="Select…"
+              />
             )}
           />
         </Field>
@@ -145,7 +192,12 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
             control={control}
             name="gstRateBps"
             render={({ field }) => (
-              <EntitySelect value={field.value} onChange={field.onChange} options={gstRateOptions} disabled={!gstEnabled} />
+              <EntitySelect
+                value={field.value}
+                onChange={field.onChange}
+                options={gstRateOptions}
+                disabled={!gstEnabled}
+              />
             )}
           />
         </Field>
@@ -155,7 +207,11 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
         <label htmlFor="gst" className="text-sm font-medium">
           Includes GST
         </label>
-        <Switch id="gst" checked={gstEnabled} onCheckedChange={(v) => setValue("gstEnabled", v)} />
+        <Switch
+          id="gst"
+          checked={gstEnabled}
+          onCheckedChange={(v) => setValue("gstEnabled", v)}
+        />
       </div>
 
       <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
@@ -166,13 +222,22 @@ export function SubscriptionForm({ onDone }: { onDone: () => void }) {
           control={control}
           name="autoRenew"
           render={({ field }) => (
-            <Switch id="auto" checked={field.value} onCheckedChange={field.onChange} />
+            <Switch
+              id="auto"
+              checked={field.value}
+              onCheckedChange={field.onChange}
+            />
           )}
         />
       </div>
 
       <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onDone} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onDone}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>

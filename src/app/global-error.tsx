@@ -22,7 +22,9 @@ export default function GlobalError({
           textAlign: "center",
         }}
       >
-        <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Something went wrong</h1>
+        <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+          Something went wrong
+        </h1>
         <p style={{ color: "#666", fontSize: "0.875rem" }}>
           {error.message || "An unexpected error occurred."}
         </p>

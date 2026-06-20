@@ -20,7 +20,9 @@ export function goalProgress(params: {
   const { savedPaise, targetPaise, monthsLeft } = params;
   const remaining = Math.max(0, targetPaise - savedPaise);
   const progressPct =
-    targetPaise > 0 ? Math.min(100, Math.max(0, (savedPaise / targetPaise) * 100)) : 0;
+    targetPaise > 0
+      ? Math.min(100, Math.max(0, (savedPaise / targetPaise) * 100))
+      : 0;
   const monthlyNeeded =
     remaining <= 0
       ? 0
@@ -28,6 +30,10 @@ export function goalProgress(params: {
         ? Math.ceil(remaining / monthsLeft)
         : remaining;
   const onTrack =
-    savedPaise >= targetPaise ? true : monthsLeft != null && monthsLeft <= 0 ? false : true;
+    savedPaise >= targetPaise
+      ? true
+      : monthsLeft != null && monthsLeft <= 0
+        ? false
+        : true;
   return { remaining, progressPct, monthlyNeeded, onTrack };
 }
