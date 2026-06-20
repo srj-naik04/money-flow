@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import {
   Dialog,
@@ -32,6 +32,22 @@ export function FormModal({
   children: ReactNode;
 }) {
   const isDesktop = useIsDesktop();
+
+  // On mobile (bottom sheet), scroll the focused field into view once the soft
+  // keyboard opens so it's never hidden behind it.
+  useEffect(() => {
+    if (!open || isDesktop) return;
+    const onFocusIn = (e: FocusEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.matches?.("input, textarea, select")) {
+        window.setTimeout(() => {
+          el.scrollIntoView({ block: "center", behavior: "smooth" });
+        }, 250);
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [open, isDesktop]);
 
   if (isDesktop) {
     return (

@@ -31,21 +31,20 @@ export async function listProjects(): Promise<ProjectDTO[]> {
 }
 
 export async function listProjectsWithStats(): Promise<ProjectWithStatsDTO[]> {
-  const rows = await db
-    .select()
-    .from(projects)
-    .orderBy(asc(projects.sortOrder), asc(projects.name));
-
-  const statRows = await db
-    .select({
-      projectId: transactions.projectId,
-      income: sql<number>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
-      expense: sql<number>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
-      gst: sql<number>`coalesce(sum(${transactions.gstAmount}), 0)`.mapWith(Number),
-      txnCount: sql<number>`count(*)`.mapWith(Number),
-    })
-    .from(transactions)
-    .groupBy(transactions.projectId);
+  // The two reads are independent — run them concurrently (one round trip).
+  const [rows, statRows] = await Promise.all([
+    db.select().from(projects).orderBy(asc(projects.sortOrder), asc(projects.name)),
+    db
+      .select({
+        projectId: transactions.projectId,
+        income: sql<number>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
+        expense: sql<number>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(Number),
+        gst: sql<number>`coalesce(sum(${transactions.gstAmount}), 0)`.mapWith(Number),
+        txnCount: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(transactions)
+      .groupBy(transactions.projectId),
+  ]);
 
   const byId = new Map(statRows.map((s) => [s.projectId, s]));
   return rows.map((r) => {

@@ -348,6 +348,8 @@ export function TransactionsView() {
         />
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card">
+          <div className={isDesktop ? "overflow-x-auto" : undefined}>
+            <div className={isDesktop ? "min-w-[840px]" : undefined}>
           {isDesktop ? (
             <div className="grid grid-cols-[40px_104px_92px_minmax(140px,1fr)_120px_96px_120px_44px] items-center gap-2 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
               <Checkbox
@@ -476,6 +478,8 @@ export function TransactionsView() {
             {query.isFetchingNextPage ? (
               <div className="py-3 text-center text-sm text-muted-foreground">Loading more…</div>
             ) : null}
+          </div>
+            </div>
           </div>
         </div>
       )}

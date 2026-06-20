@@ -1,8 +1,7 @@
 import { and, eq, gte, inArray, isNull, lt, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { transactions, categories } from "@/db/schema";
-import { archivedProjectIds } from "@/server/repositories/projects.repo";
-import { listProjectsWithStats } from "@/server/repositories/projects.repo";
+import { archivedProjectIds, listProjectsWithStats } from "@/server/repositories/projects.repo";
 import { listUpcoming } from "@/server/repositories/subscriptions.repo";
 import { listRecurring } from "@/server/repositories/recurring.repo";
 import { listGoals } from "@/server/repositories/goals.repo";
@@ -20,16 +19,13 @@ export type InsightCard = {
 
 const AI_CATEGORIES = ["Claude", "ChatGPT", "Cursor", "OpenAI API", "Gemini API"];
 
-async function txConds(projectId: string, includeArchived: boolean): Promise<SQL[]> {
+function buildConds(projectId: string, includeArchived: boolean, archived: string[]): SQL[] {
   const conds: SQL[] = [];
   if (projectId && projectId !== "all") {
     conds.push(eq(transactions.projectId, projectId));
-  } else if (!includeArchived) {
-    const archived = await archivedProjectIds();
-    if (archived.length) {
-      const c = or(isNull(transactions.projectId), notInArray(transactions.projectId, archived));
-      if (c) conds.push(c);
-    }
+  } else if (!includeArchived && archived.length) {
+    const c = or(isNull(transactions.projectId), notInArray(transactions.projectId, archived));
+    if (c) conds.push(c);
   }
   return conds;
 }
@@ -47,60 +43,76 @@ async function periodTotals(conds: SQL[], from: string, to: string) {
 }
 
 export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
-  const settings = await getSettingsRow();
+  const [settings, archived] = await Promise.all([getSettingsRow(), archivedProjectIds()]);
   const today = todayISO();
-  const conds = await txConds(projectId, settings.includeArchivedInTotals);
+  const conds = buildConds(projectId, settings.includeArchivedInTotals, archived);
   const thisM = monthRange(today);
   const lastM = monthRange(addMonthsISO(thisM.start, -1));
   const fy = fiscalYearRange(today, settings.fyStartMonth);
+  const scoped = projectId === "all" ? undefined : projectId;
 
-  const [cur, prev] = await Promise.all([
-    periodTotals(conds, thisM.start, thisM.end),
-    periodTotals(conds, lastM.start, lastM.end),
-  ]);
+  // Every read below is independent — run them as one parallel batch so this
+  // endpoint costs ~2 Neon round trips instead of ~11 sequential ones.
+  const [cur, prev, fyTotals, aiRow, topCatRow, projects, upcoming, recurring, goals] =
+    await Promise.all([
+      periodTotals(conds, thisM.start, thisM.end),
+      periodTotals(conds, lastM.start, lastM.end),
+      periodTotals(conds, fy.start, fy.end),
+      db
+        .select({
+          amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number),
+        })
+        .from(transactions)
+        .innerJoin(categories, eq(transactions.categoryId, categories.id))
+        .where(
+          and(
+            ...conds,
+            eq(transactions.type, "expense"),
+            gte(transactions.occurredAt, thisM.start),
+            lt(transactions.occurredAt, thisM.end),
+            eq(categories.kind, "expense"),
+            inArray(categories.name, AI_CATEGORIES),
+          ),
+        ),
+      db
+        .select({
+          name: sql<string>`coalesce(${categories.name}, 'Uncategorized')`,
+          amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number),
+        })
+        .from(transactions)
+        .leftJoin(categories, eq(transactions.categoryId, categories.id))
+        .where(
+          and(
+            ...conds,
+            eq(transactions.type, "expense"),
+            gte(transactions.occurredAt, thisM.start),
+            lt(transactions.occurredAt, thisM.end),
+          ),
+        )
+        .groupBy(categories.name)
+        .orderBy(sql`2 desc`)
+        .limit(1),
+      projectId === "all" ? listProjectsWithStats() : Promise.resolve([]),
+      listUpcoming("7", scoped),
+      listRecurring({ projectId: scoped }),
+      listGoals(),
+    ]);
 
   const out: InsightCard[] = [];
 
   // AI tools spend this month
-  const aiCatIds = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(and(eq(categories.kind, "expense"), inArray(categories.name, AI_CATEGORIES)));
-  if (aiCatIds.length) {
-    const [ai] = await db
-      .select({ amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number) })
-      .from(transactions)
-      .where(
-        and(
-          ...conds,
-          eq(transactions.type, "expense"),
-          gte(transactions.occurredAt, thisM.start),
-          lt(transactions.occurredAt, thisM.end),
-          inArray(transactions.categoryId, aiCatIds.map((c) => c.id)),
-        ),
-      );
-    if (ai && ai.amount > 0) {
-      out.push({
-        id: "ai-spend",
-        severity: "info",
-        icon: "sparkles",
-        title: `You spent ${formatINR(ai.amount, { decimals: false })} on AI tools this month.`,
-      });
-    }
+  const ai = aiRow[0];
+  if (ai && ai.amount > 0) {
+    out.push({
+      id: "ai-spend",
+      severity: "info",
+      icon: "sparkles",
+      title: `You spent ${formatINR(ai.amount, { decimals: false })} on AI tools this month.`,
+    });
   }
 
   // Highest expense category this month
-  const [topCat] = await db
-    .select({
-      name: sql<string>`coalesce(${categories.name}, 'Uncategorized')`,
-      amount: sql<number>`coalesce(sum(${transactions.grossAmount}),0)`.mapWith(Number),
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(and(...conds, eq(transactions.type, "expense"), gte(transactions.occurredAt, thisM.start), lt(transactions.occurredAt, thisM.end)))
-    .groupBy(categories.name)
-    .orderBy(sql`2 desc`)
-    .limit(1);
+  const topCat = topCatRow[0];
   if (topCat && topCat.amount > 0) {
     out.push({
       id: "top-category",
@@ -149,7 +161,6 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
   }
 
   // Savings rate this FY
-  const fyTotals = await periodTotals(conds, fy.start, fy.end);
   const rate = savingsRatePct(fyTotals.income, fyTotals.expense);
   if (fyTotals.income > 0) {
     out.push({
@@ -162,7 +173,6 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
 
   // Top project by profit (all projects view only)
   if (projectId === "all") {
-    const projects = await listProjectsWithStats();
     const top = projects.filter((p) => !p.isArchived).sort((a, b) => b.net - a.net)[0];
     if (top && top.net > 0) {
       out.push({
@@ -174,8 +184,7 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
     }
   }
 
-  // Upcoming large renewals (next 7 days)
-  const upcoming = await listUpcoming("7", projectId === "all" ? undefined : projectId);
+  // Upcoming subscription renewals (next 7 days)
   if (upcoming.length > 0) {
     const sum = upcoming.reduce((s, x) => s + x.amount, 0);
     out.push({
@@ -187,9 +196,6 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
   }
 
   // Planner: salary / EMIs / SIPs due in the next 7 days
-  const recurring = await listRecurring({
-    projectId: projectId === "all" ? undefined : projectId,
-  });
   const dueSoon = recurring.filter(
     (r) => r.status === "active" && r.daysUntil >= 0 && r.daysUntil <= 7,
   );
@@ -225,7 +231,6 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
   }
 
   // Savings goals: behind schedule / achieved
-  const goals = await listGoals();
   const behind = goals.filter((g) => g.status === "active" && !g.onTrack);
   if (behind.length > 0) {
     out.push({

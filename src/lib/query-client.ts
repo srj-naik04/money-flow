@@ -7,10 +7,15 @@ export function makeQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 30_000,
+        // Data only changes on the user's own mutations (which invalidate the
+        // cache and refetch). Between writes it's effectively static, so a long
+        // staleTime makes navigation instant (served from the in-memory + idb
+        // cache) instead of re-hitting the Singapore DB on every page mount.
+        staleTime: 5 * 60_000,
         gcTime: DAY_MS, // keep in cache for offline reads
         retry: 2,
         refetchOnWindowFocus: false,
+        refetchOnMount: false,
         networkMode: "offlineFirst",
       },
       mutations: {

@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { goals, goalContributions } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
@@ -57,13 +57,33 @@ function buildGoalDTO(
   };
 }
 
+/** One-query rollup of active goals for the dashboard (avoids fetching every
+ * goal + its contributions). saved = Σ contributions of active goals. */
+export async function goalsSummary(): Promise<{ saved: number; target: number; count: number }> {
+  const [row] = await db
+    .select({
+      target: sql<number>`coalesce(sum(${goals.targetAmount}), 0)`.mapWith(Number),
+      count: sql<number>`count(*)`.mapWith(Number),
+      saved: sql<number>`coalesce((
+        select sum(${goalContributions.amount})
+        from ${goalContributions}
+        where ${goalContributions.goalId} in (
+          select ${goals.id} from ${goals} where ${goals.status} = 'active'
+        )
+      ), 0)`.mapWith(Number),
+    })
+    .from(goals)
+    .where(eq(goals.status, "active"));
+  return row ?? { saved: 0, target: 0, count: 0 };
+}
+
 export async function listGoals(): Promise<GoalDTO[]> {
-  const goalRows = await db.select().from(goals).orderBy(asc(goals.createdAt));
+  // Both reads are independent — run them concurrently (one round trip).
+  const [goalRows, contribRows] = await Promise.all([
+    db.select().from(goals).orderBy(asc(goals.createdAt)),
+    db.select().from(goalContributions).orderBy(desc(goalContributions.occurredAt)),
+  ]);
   if (goalRows.length === 0) return [];
-  const contribRows = await db
-    .select()
-    .from(goalContributions)
-    .orderBy(desc(goalContributions.occurredAt));
   const byGoal = new Map<string, GoalContributionDTO[]>();
   for (const c of contribRows) {
     const dto = contributionDTO(c);

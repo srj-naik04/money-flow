@@ -260,6 +260,41 @@
   }
 }
 
+/* ---- Touch ergonomics ---- */
+/* Remove tap delay / double-tap zoom on interactive controls. */
+button,
+a,
+label,
+[role="button"],
+[role="menuitem"],
+[role="tab"],
+[role="option"] {
+  touch-action: manipulation;
+}
+
+/* On touch devices, floor interactive controls to a comfortable 44px target
+   (WCAG 2.5.5). Desktop (fine pointer) keeps the compact density. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [role="menuitem"],
+  [role="option"],
+  [role="tab"],
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
+}
+
+/* Keyboard-aware fields: when a focused field is scrolled into view inside a
+   scrollable sheet/dialog, leave room so it sits above the soft keyboard. */
+input,
+textarea,
+select {
+  scroll-margin-block: 6rem;
+}
+
 /* Reduced motion: disable non-essential animation */
 @media (prefers-reduced-motion: reduce) {
   *,

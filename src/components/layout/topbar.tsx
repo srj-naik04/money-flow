@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MobileNavDrawer } from "./mobile-nav-drawer";
 import { ProjectFilter } from "./project-filter";
 import { ThemeToggle } from "./theme-toggle";
 import { ConnectivityBadge } from "./connectivity-badge";
@@ -14,6 +15,7 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-3 pt-safe backdrop-blur sm:px-4">
+      <MobileNavDrawer />
       <ProjectFilter />
       <div className="flex-1" />
 

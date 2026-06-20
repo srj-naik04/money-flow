@@ -53,5 +53,10 @@ next-env.d.ts
 
 # local screenshots / mcp artifacts
 *.png
+*.jpg
+*.jpeg
+*.webp
 !public/**/*.png
+!public/**/*.jpg
+!public/**/*.jpeg
 .playwright-mcp/

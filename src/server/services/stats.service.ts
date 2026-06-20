@@ -2,10 +2,10 @@ import { and, eq, gte, isNull, lt, notInArray, or, sql, type SQL } from "drizzle
 import { db } from "@/db";
 import { transactions, accounts } from "@/db/schema";
 import { archivedProjectIds, activeProjectCount } from "@/server/repositories/projects.repo";
-import { listSubscriptions, listUpcoming } from "@/server/repositories/subscriptions.repo";
+import { listSubscriptions } from "@/server/repositories/subscriptions.repo";
 import { listInvestments } from "@/server/repositories/investments.repo";
 import { listRecurring } from "@/server/repositories/recurring.repo";
-import { listGoals } from "@/server/repositories/goals.repo";
+import { goalsSummary } from "@/server/repositories/goals.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
 import {
   subsMonthlyTotal,
@@ -21,19 +21,16 @@ import type { DashboardStats, UpcomingPaymentDTO } from "@/types/domain";
 
 type PeriodTotals = { income: number; expense: number; gst: number; net: number };
 
-async function txConds(projectId: string, includeArchived: boolean): Promise<SQL[]> {
+function buildConds(projectId: string, includeArchived: boolean, archived: string[]): SQL[] {
   const conds: SQL[] = [];
   if (projectId && projectId !== "all") {
     conds.push(eq(transactions.projectId, projectId));
-  } else if (!includeArchived) {
-    const archived = await archivedProjectIds();
-    if (archived.length) {
-      const cond = or(
-        isNull(transactions.projectId),
-        notInArray(transactions.projectId, archived),
-      );
-      if (cond) conds.push(cond);
-    }
+  } else if (!includeArchived && archived.length) {
+    const cond = or(
+      isNull(transactions.projectId),
+      notInArray(transactions.projectId, archived),
+    );
+    if (cond) conds.push(cond);
   }
   return conds;
 }
@@ -55,17 +52,19 @@ async function periodTotals(conds: SQL[], from?: string, to?: string): Promise<P
 }
 
 export async function getDashboardStats(projectId = "all"): Promise<DashboardStats> {
-  const settings = await getSettingsRow();
+  const [settings, archived] = await Promise.all([getSettingsRow(), archivedProjectIds()]);
   const includeArchived = settings.includeArchivedInTotals;
   const fyStartMonth = settings.fyStartMonth;
   const today = todayISO();
 
-  const conds = await txConds(projectId, includeArchived);
+  const conds = buildConds(projectId, includeArchived, archived);
   const month = monthRange(today);
   const fy = fiscalYearRange(today, fyStartMonth);
   const last3Start = addMonthsISO(month.start, -3);
-
   const scopedProject = projectId === "all" ? undefined : projectId;
+
+  // One parallel batch — every read is independent, so wall-clock is ~a single
+  // Neon round trip instead of the ~7 sequential ones this used to do.
   const [
     allTotals,
     monthTotals,
@@ -74,8 +73,10 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     subs,
     investments,
     recurring,
-    goals,
+    goalsSum,
     activeProjects,
+    openingRow,
+    signedRow,
   ] = await Promise.all([
     periodTotals(conds),
     periodTotals(conds, month.start, month.end),
@@ -84,8 +85,14 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     listSubscriptions(scopedProject),
     listInvestments(scopedProject),
     listRecurring({ projectId: scopedProject }),
-    listGoals(),
+    goalsSummary(),
     activeProjectCount(),
+    db
+      .select({ sum: sql<number>`coalesce(sum(${accounts.openingBalance}), 0)`.mapWith(Number) })
+      .from(accounts),
+    db
+      .select({ sum: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(Number) })
+      .from(transactions),
   ]);
 
   const activeSubs = subs.filter((s) => s.status === "active");
@@ -98,8 +105,10 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
 
   const invested = sumInvested(investments);
   const portfolio = sumPortfolio(investments);
+  // Cash balance is global (real money on hand), independent of project filter.
+  const cashBalance = (openingRow[0]?.sum ?? 0) + (signedRow[0]?.sum ?? 0);
 
-  // Planner KPIs: active recurring salary / EMIs / SIPs + savings goals.
+  // Planner KPIs: active recurring salary / EMIs / SIPs.
   const activeRecurring = recurring.filter((r) => r.status === "active");
   const monthlyIncomeRecurring = activeRecurring
     .filter((r) => r.template === "salary")
@@ -119,30 +128,22 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
   const sipMonthlyCommitment = activeRecurring
     .filter((r) => r.template === "sip")
     .reduce((s, r) => s + r.monthlyEquivalent, 0);
-  const activeGoalsList = goals.filter((g) => g.status === "active");
-  const goalsSaved = activeGoalsList.reduce((s, g) => s + g.savedAmount, 0);
-  const goalsTarget = activeGoalsList.reduce((s, g) => s + g.targetAmount, 0);
 
-  // Cash balance is global (real money on hand), independent of project filter.
-  const [opening] = await db
-    .select({ sum: sql<number>`coalesce(sum(${accounts.openingBalance}), 0)`.mapWith(Number) })
-    .from(accounts);
-  const [signed] = await db
-    .select({ sum: sql<number>`coalesce(sum(${transactions.signedAmount}), 0)`.mapWith(Number) })
-    .from(transactions);
-  const cashBalance = (opening?.sum ?? 0) + (signed?.sum ?? 0);
-
-  const upcomingSubs = await listUpcoming("30", projectId === "all" ? undefined : projectId);
-  const upcomingPayments: UpcomingPaymentDTO[] = upcomingSubs.map((s) => ({
-    id: s.id,
-    name: s.name,
-    amount: s.amount,
-    dueDate: s.nextDue,
-    daysUntil: s.daysUntil,
-    bucket: s.bucket,
-    projectName: s.projectName,
-    categoryName: s.categoryName,
-  }));
+  // Upcoming payments: active subscriptions due within 30 days, soonest first
+  // (derived from the already-fetched subs — no extra query).
+  const upcomingPayments: UpcomingPaymentDTO[] = activeSubs
+    .filter((s) => s.bucket !== "later")
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      amount: s.amount,
+      dueDate: s.nextDue,
+      daysUntil: s.daysUntil,
+      bucket: s.bucket,
+      projectName: s.projectName,
+      categoryName: s.categoryName,
+    }));
 
   return {
     cashBalance,
@@ -174,8 +175,8 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     emiOutstanding,
     nextEmi,
     sipMonthlyCommitment,
-    goalsSaved,
-    goalsTarget,
-    activeGoals: activeGoalsList.length,
+    goalsSaved: goalsSum.saved,
+    goalsTarget: goalsSum.target,
+    activeGoals: goalsSum.count,
   };
 }
