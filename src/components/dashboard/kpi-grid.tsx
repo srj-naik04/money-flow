@@ -8,6 +8,7 @@ import {
   Flame,
   CreditCard,
   FolderKanban,
+  Target,
 } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { Money, Percent, TrendBadge } from "@/components/common/money";
@@ -56,6 +57,40 @@ export function KpiGrid({ stats, loading = false }: { stats?: DashboardStats; lo
       label: "Recurring / mo",
       value: <Money paise={s?.recurringSubscriptionCost ?? 0} />,
       icon: CreditCard,
+    },
+    {
+      label: "Monthly Income",
+      value: <Money paise={s?.monthlyIncomeRecurring ?? 0} />,
+      icon: Wallet,
+      hint: "recurring salary",
+    },
+    {
+      label: "EMI / mo",
+      value: <Money paise={s?.emiMonthly ?? 0} />,
+      icon: Landmark,
+      hint:
+        s && s.emiOutstanding > 0 ? (
+          <>
+            <Money paise={s.emiOutstanding} compact /> outstanding
+          </>
+        ) : undefined,
+    },
+    {
+      label: "SIP / mo",
+      value: <Money paise={s?.sipMonthlyCommitment ?? 0} />,
+      icon: PiggyBank,
+      hint: "auto-invested",
+    },
+    {
+      label: "Goals Saved",
+      value: <Money paise={s?.goalsSaved ?? 0} />,
+      icon: Target,
+      hint:
+        s && s.goalsTarget > 0 ? (
+          <>
+            of <Money paise={s.goalsTarget} compact />
+          </>
+        ) : undefined,
     },
     {
       label: "Portfolio Value",

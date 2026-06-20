@@ -4,6 +4,8 @@ import { transactions, categories } from "@/db/schema";
 import { archivedProjectIds } from "@/server/repositories/projects.repo";
 import { listProjectsWithStats } from "@/server/repositories/projects.repo";
 import { listUpcoming } from "@/server/repositories/subscriptions.repo";
+import { listRecurring } from "@/server/repositories/recurring.repo";
+import { listGoals } from "@/server/repositories/goals.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
 import { savingsRatePct } from "@/lib/finance";
 import { todayISO, monthRange, addMonthsISO, fiscalYearRange } from "@/lib/date";
@@ -181,6 +183,65 @@ export async function getInsights(projectId = "all"): Promise<InsightCard[]> {
       severity: "warning",
       icon: "calendar-clock",
       title: `${upcoming.length} subscription${upcoming.length === 1 ? "" : "s"} (${formatINR(sum, { decimals: false })}) due in the next 7 days.`,
+    });
+  }
+
+  // Planner: salary / EMIs / SIPs due in the next 7 days
+  const recurring = await listRecurring({
+    projectId: projectId === "all" ? undefined : projectId,
+  });
+  const dueSoon = recurring.filter(
+    (r) => r.status === "active" && r.daysUntil >= 0 && r.daysUntil <= 7,
+  );
+  const emiDue = dueSoon.filter((r) => r.template === "emi");
+  if (emiDue.length > 0) {
+    const sum = emiDue.reduce((acc, x) => acc + x.amount, 0);
+    out.push({
+      id: "emi-due",
+      severity: "warning",
+      icon: "landmark",
+      title: `${emiDue.length} EMI${emiDue.length === 1 ? "" : "s"} (${formatINR(sum, { decimals: false })}) due in the next 7 days.`,
+    });
+  }
+  const salaryDue = dueSoon.filter((r) => r.template === "salary");
+  if (salaryDue.length > 0) {
+    const sum = salaryDue.reduce((acc, x) => acc + x.amount, 0);
+    out.push({
+      id: "salary-due",
+      severity: "success",
+      icon: "wallet",
+      title: `${formatINR(sum, { decimals: false })} income expected in the next 7 days.`,
+    });
+  }
+  const sipDue = dueSoon.filter((r) => r.template === "sip");
+  if (sipDue.length > 0) {
+    const sum = sipDue.reduce((acc, x) => acc + x.amount, 0);
+    out.push({
+      id: "sip-due",
+      severity: "info",
+      icon: "piggy-bank",
+      title: `${sipDue.length} SIP${sipDue.length === 1 ? "" : "s"} (${formatINR(sum, { decimals: false })}) coming up this week.`,
+    });
+  }
+
+  // Savings goals: behind schedule / achieved
+  const goals = await listGoals();
+  const behind = goals.filter((g) => g.status === "active" && !g.onTrack);
+  if (behind.length > 0) {
+    out.push({
+      id: "goal-behind",
+      severity: "warning",
+      icon: "target",
+      title: `${behind.length} savings goal${behind.length === 1 ? " is" : "s are"} behind schedule.`,
+    });
+  }
+  const achieved = goals.filter((g) => g.status !== "archived" && g.savedAmount >= g.targetAmount);
+  if (achieved.length > 0) {
+    out.push({
+      id: "goal-achieved",
+      severity: "success",
+      icon: "target",
+      title: `You've reached ${achieved.length} savings goal${achieved.length === 1 ? "" : "s"}! 🎉`,
     });
   }
 

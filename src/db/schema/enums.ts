@@ -42,3 +42,20 @@ export const accountTypeEnum = pgEnum("account_type", [
   "upi",
   "other",
 ]);
+
+/** Recurring-item money direction: salary in, EMI out, SIP grows an investment. */
+export const recurringFlowEnum = pgEnum("recurring_flow", ["income", "expense", "investment"]);
+
+/** Recurring-item kind (drives the Planner tab, icon, and copy). */
+export const recurringTemplateEnum = pgEnum("recurring_template", ["salary", "emi", "sip"]);
+
+/** Recurring-item lifecycle ("completed" = an EMI that finished its installments). */
+export const recurringStatusEnum = pgEnum("recurring_status", [
+  "active",
+  "paused",
+  "completed",
+  "cancelled",
+]);
+
+/** Savings-goal lifecycle. */
+export const goalStatusEnum = pgEnum("goal_status", ["active", "achieved", "archived"]);

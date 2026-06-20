@@ -58,3 +58,6 @@ export const zInvestmentType = z.enum([
   "other",
 ]);
 export const zAccountType = z.enum(["bank", "cash", "credit_card", "wallet", "upi", "other"]);
+export const zRecurringTemplate = z.enum(["salary", "emi", "sip"]);
+export const zRecurringStatus = z.enum(["active", "paused", "completed", "cancelled"]);
+export const zGoalStatus = z.enum(["active", "achieved", "archived"]);

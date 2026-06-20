@@ -10,6 +10,8 @@ import {
   PiggyBank,
   FolderKanban,
   CalendarClock,
+  Wallet,
+  Target,
   Lightbulb,
   X,
 } from "lucide-react";
@@ -26,6 +28,8 @@ const ICONS: Record<string, LucideIcon> = {
   "piggy-bank": PiggyBank,
   "folder-kanban": FolderKanban,
   "calendar-clock": CalendarClock,
+  wallet: Wallet,
+  target: Target,
 };
 
 const severityStyles: Record<string, string> = {

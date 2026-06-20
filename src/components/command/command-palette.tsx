@@ -8,6 +8,10 @@ import {
   CreditCard,
   TrendingUp,
   ArrowLeftRight,
+  Wallet,
+  Landmark,
+  PiggyBank,
+  Target,
   Moon,
   Sun,
   Search as SearchIcon,
@@ -36,9 +40,13 @@ import { NAV_ITEMS } from "@/lib/nav";
 const QUICK_ACTIONS: { type: QuickAddType; label: string; icon: typeof Banknote }[] = [
   { type: "income", label: "Add Income", icon: Banknote },
   { type: "expense", label: "Add Expense", icon: Receipt },
+  { type: "transfer", label: "Transfer", icon: ArrowLeftRight },
   { type: "subscription", label: "Add Subscription", icon: CreditCard },
   { type: "investment", label: "Add Investment", icon: TrendingUp },
-  { type: "transfer", label: "Transfer", icon: ArrowLeftRight },
+  { type: "salary", label: "Add Salary / Income", icon: Wallet },
+  { type: "emi", label: "Add Loan / EMI", icon: Landmark },
+  { type: "sip", label: "Add SIP", icon: PiggyBank },
+  { type: "goal", label: "Add Savings Goal", icon: Target },
 ];
 
 export function CommandPalette() {

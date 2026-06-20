@@ -5,7 +5,7 @@ import { seedDatabase, clearDatabase } from "@/db/seed";
 import { touchLastBackup } from "@/server/repositories/settings.repo";
 import { AppError } from "@/server/http/errors";
 
-export const SNAPSHOT_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
 
 type AnyRow = Record<string, unknown>;
 export type Snapshot = {
@@ -20,22 +20,39 @@ export type Snapshot = {
     subscriptions: AnyRow[];
     transactions: AnyRow[];
     investmentValueHistory: AnyRow[];
+    recurringItems: AnyRow[];
+    goals: AnyRow[];
+    goalContributions: AnyRow[];
     settings: AnyRow[];
   };
 };
 
 export async function exportSnapshot(): Promise<Snapshot> {
-  const [projects, categories, accounts, investments, subscriptions, transactions, history, settings] =
-    await Promise.all([
-      db.select().from(s.projects),
-      db.select().from(s.categories),
-      db.select().from(s.accounts),
-      db.select().from(s.investments),
-      db.select().from(s.subscriptions),
-      db.select().from(s.transactions),
-      db.select().from(s.investmentValueHistory),
-      db.select().from(s.settings),
-    ]);
+  const [
+    projects,
+    categories,
+    accounts,
+    investments,
+    subscriptions,
+    transactions,
+    history,
+    recurringItems,
+    goals,
+    goalContributions,
+    settings,
+  ] = await Promise.all([
+    db.select().from(s.projects),
+    db.select().from(s.categories),
+    db.select().from(s.accounts),
+    db.select().from(s.investments),
+    db.select().from(s.subscriptions),
+    db.select().from(s.transactions),
+    db.select().from(s.investmentValueHistory),
+    db.select().from(s.recurringItems),
+    db.select().from(s.goals),
+    db.select().from(s.goalContributions),
+    db.select().from(s.settings),
+  ]);
 
   const data = {
     projects,
@@ -45,6 +62,9 @@ export async function exportSnapshot(): Promise<Snapshot> {
     subscriptions,
     transactions,
     investmentValueHistory: history,
+    recurringItems,
+    goals,
+    goalContributions,
     settings,
   };
   const counts = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v.length]));
@@ -65,6 +85,10 @@ const snapshotSchema = z.object({
     subscriptions: rowArray,
     transactions: rowArray,
     investmentValueHistory: rowArray,
+    // Added in v2 — default to [] so older (v1) backups still restore cleanly.
+    recurringItems: rowArray.default([]),
+    goals: rowArray.default([]),
+    goalContributions: rowArray.default([]),
     settings: rowArray,
   }),
 });
@@ -110,11 +134,17 @@ export async function importSnapshot(snapshot: unknown): Promise<{ counts: Recor
     subscriptions: revive(d.subscriptions, ["createdAt", "updatedAt"]),
     transactions: revive(d.transactions, ["createdAt", "updatedAt"]),
     investmentValueHistory: revive(d.investmentValueHistory, ["valuedAt"]),
+    recurringItems: revive(d.recurringItems, ["createdAt", "updatedAt"]),
+    goals: revive(d.goals, ["createdAt", "updatedAt"]),
+    goalContributions: revive(d.goalContributions, ["createdAt"]),
     settings: revive(d.settings, ["lastBackupAt", "createdAt", "updatedAt"]),
   };
 
   await db.transaction(async (tx) => {
     // Clear (children first) then insert (parents first) — all in one transaction.
+    await tx.delete(s.goalContributions);
+    await tx.delete(s.goals);
+    await tx.delete(s.recurringItems);
     await tx.delete(s.investmentValueHistory);
     await tx.delete(s.transactions);
     await tx.delete(s.subscriptions);
@@ -132,6 +162,11 @@ export async function importSnapshot(snapshot: unknown): Promise<{ counts: Recor
     if (revived.transactions.length) await tx.insert(s.transactions).values(revived.transactions as never);
     if (revived.investmentValueHistory.length)
       await tx.insert(s.investmentValueHistory).values(revived.investmentValueHistory as never);
+    if (revived.recurringItems.length)
+      await tx.insert(s.recurringItems).values(revived.recurringItems as never);
+    if (revived.goals.length) await tx.insert(s.goals).values(revived.goals as never);
+    if (revived.goalContributions.length)
+      await tx.insert(s.goalContributions).values(revived.goalContributions as never);
     if (revived.settings.length) await tx.insert(s.settings).values(revived.settings as never);
   });
 

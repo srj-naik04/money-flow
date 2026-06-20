@@ -10,9 +10,12 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# testing (tests are kept local, not pushed)
 /coverage
+coverage/
 /tests/
+tests/
+*.lcov
 
 # next.js
 /.next/
@@ -38,10 +41,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# testing / e2e
-/playwright-report/
-/test-results/
-/.playwright/
+# testing / e2e artifacts (match anywhere, never push)
+playwright-report/
+test-results/
+.playwright/
+.playwright-mcp/
 
 # typescript
 *.tsbuildinfo

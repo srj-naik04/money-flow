@@ -68,9 +68,32 @@ export function addMonthsISO(iso: string, n: number): string {
   return toISODate(addMonths(parseISO(iso), n));
 }
 
+/**
+ * Advance a due date by `months`, keeping the intended billing day-of-month
+ * (so Jan 31 -> Feb 28 -> Mar 31, never permanently losing the 31st). Used by
+ * the subscriptions and the recurring-items (salary/EMI/SIP) engines.
+ */
+export function advanceDueDate(
+  currentISO: string,
+  months: number,
+  anchorDay: number | null,
+): string {
+  const cur = fromISODate(currentISO);
+  const next = addMonths(cur, months);
+  const day = anchorDay ?? cur.getDate();
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(day, lastDay));
+  return toISODate(next);
+}
+
 /** Months in a billing cycle. */
 export function cycleToMonths(cycle: BillingCycle): number {
   return CYCLE_MONTHS[cycle];
+}
+
+/** Whole calendar months from `fromISO` to `targetISO` (negative if in the past). */
+export function monthsUntilISO(targetISO: string, fromISO: string): number {
+  return differenceInCalendarMonths(parseISO(targetISO), parseISO(fromISO));
 }
 
 /**

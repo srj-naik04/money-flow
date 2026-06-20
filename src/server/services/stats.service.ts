@@ -4,6 +4,8 @@ import { transactions, accounts } from "@/db/schema";
 import { archivedProjectIds, activeProjectCount } from "@/server/repositories/projects.repo";
 import { listSubscriptions, listUpcoming } from "@/server/repositories/subscriptions.repo";
 import { listInvestments } from "@/server/repositories/investments.repo";
+import { listRecurring } from "@/server/repositories/recurring.repo";
+import { listGoals } from "@/server/repositories/goals.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
 import {
   subsMonthlyTotal,
@@ -63,16 +65,28 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
   const fy = fiscalYearRange(today, fyStartMonth);
   const last3Start = addMonthsISO(month.start, -3);
 
-  const [allTotals, monthTotals, fyTotals, last3Expense, subs, investments, activeProjects] =
-    await Promise.all([
-      periodTotals(conds),
-      periodTotals(conds, month.start, month.end),
-      periodTotals(conds, fy.start, fy.end),
-      periodTotals(conds, last3Start, month.start),
-      listSubscriptions(projectId === "all" ? undefined : projectId),
-      listInvestments(projectId === "all" ? undefined : projectId),
-      activeProjectCount(),
-    ]);
+  const scopedProject = projectId === "all" ? undefined : projectId;
+  const [
+    allTotals,
+    monthTotals,
+    fyTotals,
+    last3Expense,
+    subs,
+    investments,
+    recurring,
+    goals,
+    activeProjects,
+  ] = await Promise.all([
+    periodTotals(conds),
+    periodTotals(conds, month.start, month.end),
+    periodTotals(conds, fy.start, fy.end),
+    periodTotals(conds, last3Start, month.start),
+    listSubscriptions(scopedProject),
+    listInvestments(scopedProject),
+    listRecurring({ projectId: scopedProject }),
+    listGoals(),
+    activeProjectCount(),
+  ]);
 
   const activeSubs = subs.filter((s) => s.status === "active");
   const subsMonthly = subsMonthlyTotal(
@@ -84,6 +98,30 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
 
   const invested = sumInvested(investments);
   const portfolio = sumPortfolio(investments);
+
+  // Planner KPIs: active recurring salary / EMIs / SIPs + savings goals.
+  const activeRecurring = recurring.filter((r) => r.status === "active");
+  const monthlyIncomeRecurring = activeRecurring
+    .filter((r) => r.template === "salary")
+    .reduce((s, r) => s + r.monthlyEquivalent, 0);
+  const activeEmis = activeRecurring.filter((r) => r.template === "emi");
+  const emiMonthly = activeEmis.reduce((s, r) => s + r.monthlyEquivalent, 0);
+  const emiOutstanding = activeEmis.reduce((s, r) => s + (r.outstandingAmount ?? 0), 0);
+  const nextEmiItem = [...activeEmis].sort((a, b) => a.daysUntil - b.daysUntil)[0];
+  const nextEmi = nextEmiItem
+    ? {
+        id: nextEmiItem.id,
+        name: nextEmiItem.name,
+        amount: nextEmiItem.amount,
+        dueDate: nextEmiItem.nextDue,
+      }
+    : null;
+  const sipMonthlyCommitment = activeRecurring
+    .filter((r) => r.template === "sip")
+    .reduce((s, r) => s + r.monthlyEquivalent, 0);
+  const activeGoalsList = goals.filter((g) => g.status === "active");
+  const goalsSaved = activeGoalsList.reduce((s, g) => s + g.savedAmount, 0);
+  const goalsTarget = activeGoalsList.reduce((s, g) => s + g.targetAmount, 0);
 
   // Cash balance is global (real money on hand), independent of project filter.
   const [opening] = await db
@@ -131,5 +169,13 @@ export async function getDashboardStats(projectId = "all"): Promise<DashboardSta
     recurringSubscriptionCost: subsMonthly,
     activeProjects,
     upcomingPayments,
+    monthlyIncomeRecurring,
+    emiMonthly,
+    emiOutstanding,
+    nextEmi,
+    sipMonthlyCommitment,
+    goalsSaved,
+    goalsTarget,
+    activeGoals: activeGoalsList.length,
   };
 }

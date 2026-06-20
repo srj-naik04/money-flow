@@ -19,6 +19,28 @@ export type InvestmentType =
   | "real_estate"
   | "other";
 export type AccountType = "bank" | "cash" | "credit_card" | "wallet" | "upi" | "other";
+export type RecurringFlow = "income" | "expense" | "investment";
+export type RecurringTemplate = "salary" | "emi" | "sip";
+export type RecurringStatus = "active" | "paused" | "completed" | "cancelled";
+export type GoalStatus = "active" | "achieved" | "archived";
+
+/** Planner recurring templates (label + the flow each maps to). */
+export const RECURRING_TEMPLATES: {
+  value: RecurringTemplate;
+  flow: RecurringFlow;
+  label: string;
+}[] = [
+  { value: "salary", flow: "income", label: "Salary / Income" },
+  { value: "emi", flow: "expense", label: "Loan / EMI" },
+  { value: "sip", flow: "investment", label: "SIP" },
+];
+
+/** Map a recurring template to its money flow (server is authoritative). */
+export const TEMPLATE_FLOW: Record<RecurringTemplate, RecurringFlow> = {
+  salary: "income",
+  emi: "expense",
+  sip: "investment",
+};
 
 /** Number of months in each billing cycle (for burn-rate normalization). */
 export const CYCLE_MONTHS: Record<BillingCycle, number> = {

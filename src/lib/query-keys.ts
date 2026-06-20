@@ -33,6 +33,11 @@ export const qk = {
   upcoming: (window: UpcomingWindow, projectId: string) =>
     [...qk.all, "upcoming", window, projectId] as const,
 
+  recurring: (projectId: string, template: string) =>
+    [...qk.all, "recurring", projectId, template] as const,
+  goals: () => [...qk.all, "goals"] as const,
+  goal: (id: string) => [...qk.all, "goal", id] as const,
+
   investments: (projectId: string) => [...qk.all, "investments", projectId] as const,
 
   analytics: (chart: AnalyticsChart, projectId: string, range: AnalyticsRange) =>

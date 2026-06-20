@@ -7,6 +7,8 @@ import { ExpenseForm } from "./expense-form";
 import { SubscriptionForm } from "./subscription-form";
 import { InvestmentForm } from "./investment-form";
 import { TransferForm } from "./transfer-form";
+import { RecurringForm } from "@/components/planner/recurring-form";
+import { GoalForm } from "@/components/planner/goal-form";
 import type { QuickAddType } from "@/stores/ui-store";
 
 const META: Record<QuickAddType, { title: string; description: string }> = {
@@ -15,6 +17,10 @@ const META: Record<QuickAddType, { title: string; description: string }> = {
   subscription: { title: "Add Subscription", description: "Track a recurring cost." },
   investment: { title: "Add Investment", description: "Track a holding." },
   transfer: { title: "Transfer", description: "Move money between accounts." },
+  salary: { title: "Add Salary / Income", description: "A recurring income like your salary." },
+  emi: { title: "Add Loan / EMI", description: "A loan or a card bill split into installments." },
+  sip: { title: "Add SIP", description: "A recurring investment into a holding." },
+  goal: { title: "Add Savings Goal", description: "Set a target and track progress." },
 };
 
 export function QuickAddHost() {
@@ -36,6 +42,10 @@ export function QuickAddHost() {
       {quickAdd === "subscription" ? <SubscriptionForm onDone={closeQuickAdd} /> : null}
       {quickAdd === "investment" ? <InvestmentForm onDone={closeQuickAdd} /> : null}
       {quickAdd === "transfer" ? <TransferForm onDone={closeQuickAdd} /> : null}
+      {quickAdd === "salary" ? <RecurringForm template="salary" onDone={closeQuickAdd} /> : null}
+      {quickAdd === "emi" ? <RecurringForm template="emi" onDone={closeQuickAdd} /> : null}
+      {quickAdd === "sip" ? <RecurringForm template="sip" onDone={closeQuickAdd} /> : null}
+      {quickAdd === "goal" ? <GoalForm onDone={closeQuickAdd} /> : null}
     </FormModal>
   );
 }

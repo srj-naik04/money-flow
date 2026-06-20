@@ -8,7 +8,11 @@ export type QuickAddType =
   | "expense"
   | "subscription"
   | "investment"
-  | "transfer";
+  | "transfer"
+  | "salary"
+  | "emi"
+  | "sip"
+  | "goal";
 
 type UiState = {
   /** "all" or a project uuid. */

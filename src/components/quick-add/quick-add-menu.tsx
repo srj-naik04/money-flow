@@ -1,6 +1,17 @@
 "use client";
 
-import { Plus, Banknote, Receipt, CreditCard, TrendingUp, ArrowLeftRight } from "lucide-react";
+import {
+  Plus,
+  Banknote,
+  Receipt,
+  CreditCard,
+  TrendingUp,
+  ArrowLeftRight,
+  Wallet,
+  Landmark,
+  PiggyBank,
+  Target,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,9 +25,13 @@ import type { QuickAddType } from "@/stores/ui-store";
 const ITEMS: { type: QuickAddType; label: string; icon: typeof Plus }[] = [
   { type: "income", label: "Income", icon: Banknote },
   { type: "expense", label: "Expense", icon: Receipt },
+  { type: "transfer", label: "Transfer", icon: ArrowLeftRight },
   { type: "subscription", label: "Subscription", icon: CreditCard },
   { type: "investment", label: "Investment", icon: TrendingUp },
-  { type: "transfer", label: "Transfer", icon: ArrowLeftRight },
+  { type: "salary", label: "Salary / Income", icon: Wallet },
+  { type: "emi", label: "Loan / EMI", icon: Landmark },
+  { type: "sip", label: "SIP", icon: PiggyBank },
+  { type: "goal", label: "Savings Goal", icon: Target },
 ];
 
 export function QuickAddMenu() {

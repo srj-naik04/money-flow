@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { subscriptions, projects, categories } from "@/db/schema";
 import { AppError } from "@/server/http/errors";
 import { deriveSubscriptionAmounts } from "@/server/lib/derive";
-import { todayISO, cycleToMonths, fromISODate, toISODate, addMonths } from "@/lib/date";
+import { todayISO, cycleToMonths, fromISODate, advanceDueDate } from "@/lib/date";
 import {
   subscriptionMonthlyPaise,
   subscriptionYearlyPaise,
@@ -16,17 +16,6 @@ import type {
   SubscriptionCreateInput,
   SubscriptionUpdateInput,
 } from "@/lib/schemas/subscription";
-
-/** Advance a due date by `months`, keeping the intended billing day-of-month
- * (so Jan 31 -> Feb 28 -> Mar 31, never permanently losing the 31st). */
-function advanceDueDate(currentISO: string, months: number, anchorDay: number | null): string {
-  const cur = fromISODate(currentISO);
-  const next = addMonths(cur, months);
-  const day = anchorDay ?? cur.getDate();
-  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-  next.setDate(Math.min(day, lastDay));
-  return toISODate(next);
-}
 
 const selectFields = {
   id: subscriptions.id,

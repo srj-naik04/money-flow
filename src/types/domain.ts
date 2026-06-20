@@ -6,6 +6,10 @@ import type {
   AccountType,
   ProjectStatus,
   CategoryKind,
+  RecurringFlow,
+  RecurringTemplate,
+  RecurringStatus,
+  GoalStatus,
 } from "@/lib/constants";
 import type { RenewalBucket } from "@/lib/finance/renewals";
 
@@ -119,6 +123,76 @@ export type InvestmentDTO = {
   gainPct: number;
 };
 
+export type RecurringItemDTO = {
+  id: string;
+  flow: RecurringFlow;
+  template: RecurringTemplate;
+  name: string;
+  notes: string | null;
+  amount: number;
+  baseAmount: number;
+  gstAmount: number;
+  gstRateBps: number;
+  gstIncluded: boolean;
+  billingCycle: BillingCycle;
+  anchorDate: string;
+  status: RecurringStatus;
+  autoRenew: boolean;
+  autoPost: boolean;
+  accountId: string | null;
+  accountName: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  projectColor: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  principalAmount: number | null;
+  totalInstallments: number | null;
+  installmentsPaid: number;
+  interestRateBps: number | null;
+  investmentId: string | null;
+  investmentName: string | null;
+  // computed
+  nextDue: string;
+  daysUntil: number;
+  bucket: RenewalBucket;
+  monthlyEquivalent: number;
+  /** EMI only: amount * remaining installments. */
+  outstandingAmount: number | null;
+  /** EMI only: installmentsPaid / totalInstallments * 100. */
+  payoffPct: number | null;
+};
+
+export type GoalContributionDTO = {
+  id: string;
+  goalId: string;
+  amount: number;
+  occurredAt: string;
+  note: string | null;
+  transactionId: string | null;
+  createdAt: string;
+};
+
+export type GoalDTO = {
+  id: string;
+  name: string;
+  notes: string | null;
+  color: string | null;
+  icon: string | null;
+  targetAmount: number;
+  targetDate: string | null;
+  status: GoalStatus;
+  linkedAccountId: string | null;
+  linkedInvestmentId: string | null;
+  // computed
+  savedAmount: number;
+  remainingAmount: number;
+  progressPct: number;
+  monthlyNeeded: number;
+  onTrack: boolean;
+  contributions: GoalContributionDTO[];
+};
+
 export type UpcomingPaymentDTO = {
   id: string;
   name: string;
@@ -147,6 +221,15 @@ export type DashboardStats = {
   recurringSubscriptionCost: number;
   activeProjects: number;
   upcomingPayments: UpcomingPaymentDTO[];
+  // Planner KPIs (recurring salary / EMIs / SIPs / goals)
+  monthlyIncomeRecurring: number;
+  emiMonthly: number;
+  emiOutstanding: number;
+  nextEmi: { id: string; name: string; amount: number; dueDate: string } | null;
+  sipMonthlyCommitment: number;
+  goalsSaved: number;
+  goalsTarget: number;
+  activeGoals: number;
 };
 
 export type SettingsDTO = {

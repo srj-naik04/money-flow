@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Repeat, TrendingUp, TriangleAlert } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Repeat,
+  TrendingUp,
+  TriangleAlert,
+  Banknote,
+  Landmark,
+  PiggyBank,
+  type LucideIcon,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
@@ -11,6 +21,14 @@ import { useCalendar } from "@/hooks/use-calendar";
 import { todayISO, addMonthsISO, formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import type { CalendarDay, CalendarEvent } from "@/server/services/calendar.service";
+
+const EVENT_ICON: Record<CalendarEvent["kind"], { Icon: LucideIcon; cls: string }> = {
+  renewal: { Icon: Repeat, cls: "text-chart-1" },
+  investment: { Icon: TrendingUp, cls: "text-chart-7" },
+  salary: { Icon: Banknote, cls: "text-positive" },
+  emi: { Icon: Landmark, cls: "text-negative" },
+  sip: { Icon: PiggyBank, cls: "text-chart-7" },
+};
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -110,12 +128,10 @@ export default function CalendarPage() {
                       {num}
                     </span>
                     <div className="flex gap-0.5">
-                      {events.some((e) => e.kind === "renewal") ? (
-                        <Repeat className="size-3 text-chart-1" />
-                      ) : null}
-                      {events.some((e) => e.kind === "investment") ? (
-                        <TrendingUp className="size-3 text-chart-7" />
-                      ) : null}
+                      {[...new Set(events.map((e) => e.kind))].map((k) => {
+                        const { Icon, cls } = EVENT_ICON[k];
+                        return <Icon key={k} className={cn("size-3", cls)} />;
+                      })}
                       {day?.hasLarge ? <TriangleAlert className="size-3 text-warning-foreground" /> : null}
                     </div>
                   </div>
@@ -157,17 +173,16 @@ export default function CalendarPage() {
             ) : null}
             {selectedEvents.length > 0 ? (
               <ul className="space-y-1.5">
-                {selectedEvents.map((e, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    {e.kind === "renewal" ? (
-                      <Repeat className="size-4 text-chart-1" />
-                    ) : (
-                      <TrendingUp className="size-4 text-chart-7" />
-                    )}
-                    <span className="flex-1">{e.name}</span>
-                    {e.amount ? <Money paise={e.amount} className="font-medium" /> : null}
-                  </li>
-                ))}
+                {selectedEvents.map((e, i) => {
+                  const { Icon, cls } = EVENT_ICON[e.kind];
+                  return (
+                    <li key={i} className="flex items-center gap-2 text-sm">
+                      <Icon className={cn("size-4", cls)} />
+                      <span className="flex-1">{e.name}</span>
+                      {e.amount ? <Money paise={e.amount} className="font-medium" /> : null}
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
             {!selectedDay && selectedEvents.length === 0 ? (

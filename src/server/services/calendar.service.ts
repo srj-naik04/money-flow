@@ -1,6 +1,6 @@
 import { and, eq, gte, isNull, lt, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { transactions, subscriptions, investments } from "@/db/schema";
+import { transactions, subscriptions, investments, recurringItems } from "@/db/schema";
 import { archivedProjectIds } from "@/server/repositories/projects.repo";
 import { getSettingsRow } from "@/server/repositories/settings.repo";
 import { largePaymentThreshold } from "@/lib/finance";
@@ -16,7 +16,7 @@ export type CalendarDay = {
 };
 export type CalendarEvent = {
   date: string;
-  kind: "renewal" | "investment";
+  kind: "renewal" | "investment" | "salary" | "emi" | "sip";
   name: string;
   amount?: number;
 };
@@ -121,6 +121,33 @@ export async function getCalendar(month: string, projectId = "all"): Promise<Cal
       ),
     );
   for (const i of invs) events.push({ date: i.purchaseDate, kind: "investment", name: i.name });
+
+  // Planner recurring items (salary / EMI / SIP) projected into the visible month.
+  const recCond =
+    projectId && projectId !== "all" ? eq(recurringItems.projectId, projectId) : undefined;
+  const recs = await db
+    .select({
+      name: recurringItems.name,
+      amount: recurringItems.amount,
+      anchorDate: recurringItems.anchorDate,
+      billingCycle: recurringItems.billingCycle,
+      status: recurringItems.status,
+      template: recurringItems.template,
+      totalInstallments: recurringItems.totalInstallments,
+      installmentsPaid: recurringItems.installmentsPaid,
+    })
+    .from(recurringItems)
+    .where(recCond);
+  for (const r of recs) {
+    if (r.status !== "active") continue;
+    let occurrences = renewalsInRange(r.anchorDate, r.billingCycle, monthStart, monthEndInclusive);
+    if (r.template === "emi" && r.totalInstallments != null) {
+      occurrences = occurrences.slice(0, Math.max(0, r.totalInstallments - r.installmentsPaid));
+    }
+    for (const date of occurrences) {
+      events.push({ date, kind: r.template, name: r.name, amount: r.amount });
+    }
+  }
 
   return { month, days, events, largeThreshold };
 }

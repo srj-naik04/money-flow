@@ -17,6 +17,9 @@ import {
 
 /** Delete all rows in FK-safe order. */
 export async function clearDatabase(db: Database): Promise<void> {
+  await db.delete(s.goalContributions);
+  await db.delete(s.goals);
+  await db.delete(s.recurringItems);
   await db.delete(s.investmentValueHistory);
   await db.delete(s.transactions);
   await db.delete(s.subscriptions);
@@ -272,6 +275,7 @@ export async function seedDatabase(db: Database): Promise<void> {
       ],
     },
   ];
+  const investmentIds: Record<string, string> = {};
   for (const inv of invSeeds) {
     const [row] = await db
       .insert(s.investments)
@@ -284,6 +288,7 @@ export async function seedDatabase(db: Database): Promise<void> {
         purchaseDate: daysAgoISO(today, inv.purchaseDaysAgo),
       })
       .returning({ id: s.investments.id });
+    investmentIds[inv.name] = row.id;
     await db.insert(s.investmentValueHistory).values(
       inv.history.map((h) => ({
         investmentId: row.id,
@@ -292,4 +297,101 @@ export async function seedDatabase(db: Database): Promise<void> {
       })),
     );
   }
+
+  // ---- Planner: recurring salary / EMI / SIP ----
+  const futureISO = (days: number) => daysAgoISO(today, -days);
+  const anchorDay = (iso: string) => fromISODate(iso).getDate();
+  const salaryDue = futureISO(5);
+  const emiDue = futureISO(8);
+  const sipDue = futureISO(3);
+  await db.insert(s.recurringItems).values([
+    {
+      flow: "income",
+      template: "salary",
+      name: "Monthly Salary",
+      amount: toPaise(60000),
+      baseAmount: toPaise(60000),
+      gstAmount: 0,
+      gstRateBps: 0,
+      gstIncluded: false,
+      billingCycle: "monthly",
+      anchorDate: salaryDue,
+      anchorDay: anchorDay(salaryDue),
+      status: "active",
+      autoRenew: true,
+      autoPost: true,
+      accountId: acc("HDFC Bank"),
+      projectId: proj("Personal"),
+      categoryId: cat("Salary", "income"),
+    },
+    {
+      flow: "expense",
+      template: "emi",
+      name: "Car Loan EMI",
+      amount: toPaise(8500),
+      baseAmount: toPaise(8500),
+      gstAmount: 0,
+      gstRateBps: 0,
+      gstIncluded: false,
+      billingCycle: "monthly",
+      anchorDate: emiDue,
+      anchorDay: anchorDay(emiDue),
+      status: "active",
+      autoRenew: true,
+      autoPost: true,
+      accountId: acc("HDFC Bank"),
+      projectId: proj("Personal"),
+      principalAmount: toPaise(400000),
+      totalInstallments: 24,
+      installmentsPaid: 7,
+      interestRateBps: 950,
+    },
+    {
+      flow: "investment",
+      template: "sip",
+      name: "Nifty 50 SIP",
+      amount: toPaise(5000),
+      baseAmount: toPaise(5000),
+      gstAmount: 0,
+      gstRateBps: 0,
+      gstIncluded: false,
+      billingCycle: "monthly",
+      anchorDate: sipDue,
+      anchorDay: anchorDay(sipDue),
+      status: "active",
+      autoRenew: true,
+      autoPost: true,
+      accountId: acc("HDFC Bank"),
+      projectId: proj("Personal"),
+      investmentId: investmentIds["Nifty 50 Index Fund"],
+    },
+  ]);
+
+  // ---- Savings goals + contributions ----
+  const [emergency] = await db
+    .insert(s.goals)
+    .values({
+      name: "Emergency Fund",
+      targetAmount: toPaise(300000),
+      targetDate: futureISO(180),
+      status: "active",
+      color: "#10b981",
+    })
+    .returning({ id: s.goals.id });
+  const [laptop] = await db
+    .insert(s.goals)
+    .values({
+      name: "New Laptop",
+      targetAmount: toPaise(150000),
+      targetDate: futureISO(5),
+      status: "active",
+      color: "#6366f1",
+    })
+    .returning({ id: s.goals.id });
+  await db.insert(s.goalContributions).values([
+    { goalId: emergency.id, amount: toPaise(50000), occurredAt: daysAgoISO(today, 90), note: "Initial" },
+    { goalId: emergency.id, amount: toPaise(60000), occurredAt: daysAgoISO(today, 60) },
+    { goalId: emergency.id, amount: toPaise(70000), occurredAt: daysAgoISO(today, 20) },
+    { goalId: laptop.id, amount: toPaise(40000), occurredAt: daysAgoISO(today, 40) },
+  ]);
 }
